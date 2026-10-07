@@ -21,6 +21,8 @@
   #time{font-size:clamp(90px,28vw,190px);font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
   #hr{font-size:clamp(46px,16vw,90px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
   #zone{font-size:18px;opacity:.95;min-height:1.4em}
+  #zone.ga{font-size:26px;font-weight:800;opacity:1;background:#fff;color:#0a7a2a;border-radius:12px;padding:6px 12px}
+  body.run.ga{background:#1f9d3a}
   #stats{font-size:16px;opacity:.9;min-height:1.4em;font-variant-numeric:tabular-nums}
   #bar{height:8px;background:rgba(255,255,255,.25);border-radius:4px;overflow:hidden}
   #bar div{height:100%;width:0;background:#fff}
@@ -203,6 +205,17 @@ async function connectHR(){
 }
 $("hrbtn").onclick=connectHR;
 
+
+// ===== Ausdauer-Zone (60-75 % Max-Puls) =====
+function gaUpdate(){
+  const lo=Math.round(.60*hrmax()),hi=Math.round(.75*hrmax()),z=$("zone");
+  if(!hrNow){$("hr").textContent=hrDev?"❤️ …":"";z.textContent="";z.className="";document.body.classList.remove("ga");return;}
+  $("hr").textContent="❤️ "+hrNow;
+  const inb=hrNow>=lo&&hrNow<=hi;
+  document.body.classList.toggle("ga",inb&&!paused);
+  if(inb){z.textContent="✅ AUSDAUER-ZONE "+lo+"–"+hi;z.className="ga";}
+  else{z.className="";z.textContent=(hrNow<lo?"↑ zu locker":"↓ zu hart")+" · Ziel "+lo+"–"+hi+" · "+ZNAME[zoneOf(hrNow)];}
+}
 // ===== Anzeige =====
 function draw(){
   const s=MODE==="timer"?Math.max(0,P-t):t;
@@ -211,8 +224,7 @@ function draw(){
   $("top").firstElementChild.textContent=MODE==="timer"?"Timer "+mmss(P):"Offen";
   $("stepinfo").textContent=MODE==="timer"?"gefahren "+mmss(t):"";
   if(MODE==="timer"){$("bar").classList.remove("hide");$("bar").firstElementChild.style.width=(100*Math.min(1,t/P))+"%";}
-  if(hrNow){$("hr").textContent="❤️ "+hrNow;$("zone").textContent=ZNAME[zoneOf(hrNow)]+" · "+Math.round(100*hrNow/hrmax())+" % von "+hrmax();}
-  else{$("hr").textContent=hrDev?"❤️ …":"";$("zone").textContent="";}
+  gaUpdate();
   $("stats").textContent=hrT>0?"Ø "+Math.round(hrS/hrT)+" · max "+hrMaxSeen+" bpm":"";
 }
 
