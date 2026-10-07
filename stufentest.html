@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Ruder-Stufentest</title>
+<style>
+  :root{--bg:#10141a;--fg:#f2f5f8}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overscroll-behavior:none;touch-action:manipulation;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-user-select:none;user-select:none}
+  body{display:flex;flex-direction:column;padding:16px;gap:10px;transition:background .3s}
+  body.run{background:#0b7285} body.pause{background:#495057} body.done{background:#2f9e44}
+  #top{display:flex;justify-content:space-between;align-items:center;font-size:14px;opacity:.9;gap:8px}
+  #awake{text-align:center;font-size:12px;opacity:.8;min-height:1.2em}
+  #awake.warn{opacity:1;background:rgba(0,0,0,.35);border-radius:8px;padding:6px 8px;font-size:13px}
+  #main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+  #label{font-size:15px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+  #time{font-size:clamp(90px,28vw,190px);font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+  #hr{font-size:clamp(46px,16vw,90px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+  #zone{font-size:18px;opacity:.95;min-height:1.4em}
+  #stats{font-size:16px;opacity:.9;min-height:1.4em;font-variant-numeric:tabular-nums}
+  #bar{height:8px;background:rgba(255,255,255,.25);border-radius:4px;overflow:hidden}
+  #bar div{height:100%;width:0;background:#fff}
+  #btns{display:flex;gap:10px}
+  button{flex:1;padding:18px 8px;font-size:18px;font-weight:600;border:0;border-radius:14px;background:rgba(255,255,255,.2);color:#fff}
+  button.primary{background:#fff;color:#111}
+  button:active{transform:scale(.97)}
+  button.mini{flex:none;padding:4px 12px;font-size:13px;border-radius:10px}
+  #summary{width:100%;max-width:520px;max-height:34vh;overflow:auto;text-align:left;font-size:14px;line-height:1.5;background:rgba(0,0,0,.2);border-radius:12px;padding:10px 12px;white-space:pre-wrap;-webkit-user-select:text;user-select:text}
+  #spark{width:100%;max-width:520px;height:70px;background:rgba(0,0,0,.2);border-radius:12px}
+  #save{width:100%;flex:none;padding:22px 8px;font-size:22px;background:#fff;color:#111;border-radius:18px}
+  #start{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;z-index:5;overflow:auto}
+  #start h1{margin:0;font-size:30px}
+  #start p{margin:0;opacity:.75;max-width:30em;font-size:14px;line-height:1.4}
+  #start button{flex:none;width:100%;max-width:320px;font-size:22px}
+  #modes{display:flex;gap:8px;width:100%;max-width:320px}
+  #start #modes button{flex:1;width:auto;font-size:17px;padding:12px 4px;background:rgba(255,255,255,.15);color:#fff}
+  #start #modes button.on{background:#fff;color:#111}
+  #presets{display:flex;gap:8px;width:100%;max-width:320px}
+  #start #presets button{flex:1;width:auto;font-size:16px;padding:10px 4px;background:rgba(255,255,255,.15);color:#fff}
+  .row{display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px}
+  .row input{width:80px;padding:8px;font-size:18px;border-radius:8px;border:0;text-align:center}
+  #resumebox{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,.1);border-radius:14px;padding:12px;font-size:14px;line-height:1.4}
+  #resumebox p{margin:0;opacity:.9}
+  #start #hrbtn{font-size:16px;padding:12px 8px;background:rgba(255,255,255,.15);color:#fff}
+  #hrinfo{font-size:13px}
+  #rowdata{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 14px;width:100%;max-width:420px}
+  #rowdata div{display:flex;flex-direction:column;font-size:13px;opacity:.95}
+  #rowdata b{font-size:30px;font-variant-numeric:tabular-nums}
+  #start #rowbtn{font-size:16px;padding:12px 8px;background:rgba(255,255,255,.15);color:#fff}
+  #start #rowall{font-size:13px;padding:8px;background:transparent;color:#fff;opacity:.8;text-decoration:underline}
+  #wakevid{position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:.02;pointer-events:none}
+  .hide{display:none!important}
+  #target{font-size:22px;font-weight:700;opacity:.95}
+  #watt{font-size:clamp(70px,22vw,130px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+  #diff{font-size:22px;font-weight:700;min-height:1.4em}
+  #plan{width:100%;max-width:420px;text-align:left;font-size:13px;line-height:1.5;background:rgba(255,255,255,.07);border-radius:12px;padding:10px 12px}
+  #plan b{display:inline-block;min-width:3.6em}
+  #skipbtn{flex:none;padding:12px 14px;font-size:14px}
+</style>
+</head>
+<body class="run">
+<div id="start">
+  <h1>Ruder-Stufentest</h1>
+  <p>20 Minuten, Leistung in Stufen bis 180 W. Du bekommst die Zielleistung, der Test misst deinen Puls bei jeder Stufe.</p>
+  <div id="plan"></div>
+  <label class="row">Max-Puls <input id="hrmax" type="number" inputmode="numeric" min="140" max="220" value="182"> bpm</label>
+  <button id="rowbtn">🚣 Rudergerät verbinden</button>
+  <button id="rowall">Rudergerät nicht in der Liste? Alle Geräte anzeigen</button>
+  <p id="rowinfo">Rudergerät einschalten und ein paar Züge rudern, dann antippen. Domyos-App schließen.</p>
+  <button id="hrbtn">❤️ Pulsgurt verbinden</button>
+  <p id="hrinfo">Gurt anlegen, Kontaktflächen nass. Verbindung über Chrome.</p>
+  <button class="primary" id="go">Start</button>
+</div>
+
+<div id="top"><span id="stepinfo"></span><span id="modetxt"></span><button id="end" class="mini">Beenden</button></div>
+<div id="awake"></div>
+<div id="main">
+  <div id="label"></div>
+  <div id="time">0:00</div>
+  <div id="target"></div>
+  <div id="watt"></div>
+  <div id="diff"></div>
+  <div id="hr"></div>
+  <div id="stats"></div>
+  <div id="rowdata" class="hide"></div>
+  <div id="zone"></div>
+</div>
+<div id="bar"><div></div></div>
+<svg id="spark" class="hide" viewBox="0 0 300 150" preserveAspectRatio="xMidYMid meet" style="height:150px"></svg>
+<div id="summary" class="hide"></div>
+<button id="save" class="hide">💾 Ergebnis speichern (Drive)</button>
+<div id="btns">
+  <button id="pause" class="primary">Pause</button>
+  <button id="skipbtn">→ Cool-down</button>
+</div>
+
+<video id="wakevid" muted playsinline loop webkit-playsinline>
+  <source src="data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwEAAAAAAAHiEU2bdLpNu4tTq4QVSalmU6yBoU27i1OrhBZUrmtTrIHYTbuMU6uEElTDZ1OsggEeTbuMU6uEHFO7a1OsggHM7AEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmsirXsYMPQkBNgI1MYXZmNjAuMTYuMTAwV0GNTGF2ZjYwLjE2LjEwMESJiECPQAAAAAAAFlSua8GuAQAAAAAAADjXgQFzxYgAYkuwHrZd0ZyBACK1nIN1bmSIgQCGhVZfVlA4g4EBI+ODhDuaygDgibCBELqBEJqBAhJUw2f8c3OgY8CAZ8iaRaOHRU5DT0RFUkSHjUxhdmY2MC4xNi4xMDBzc9ZjwItjxYgAYkuwHrZd0WfIoUWjh0VOQ09ERVJEh5RMYXZjNjAuMzEuMTAyIGxpYnZweGfIoUWjiERVUkFUSU9ORIeTMDA6MDA6MDEuMDAwMDAwMDAwAB9DtnWo54EAo6OBAACAEAIAnQEqEAAQAABHCIWFiJmEiAICAAwNYAD+/6tQgBxTu2uRu4+zgQC3iveBAfGCAZ/wgQM=" type="video/webm">
+  <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAMVbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAj90cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAG3bWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAQABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABYm1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAASJzdGJsAAAAvnN0c2QAAAAAAAAAAQAAAK5hdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAANGF2Y0MBZAAK/+EAF2dkAAqs2V7ARAAAAwAEAAADAAg8SJZYAQAGaOvjyyLA/fj4AAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAABYoAAAWKAAAABhzdHRzAAAAAAAAAAEAAAABAABAAAAAABxzdHNjAAAAAAAAAAEAAAABAAAAAQAAAAEAAAAUc3RzegAAAAAAAALFAAAAAQAAABRzdGNvAAAAAAAAAAEAAANFAAAAYnVkdGEAAABabWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAtaWxzdAAAACWpdG9vAAAAHWRhdGEAAAABAAAAAExhdmY2MC4xNi4xMDAAAAAIZnJlZQAAAs1tZGF0AAACrQYF//+p3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzEwOCAzMWUxOWY5IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyMyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTEgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAAQZYiEABX//vfJ78Cm69vfgQ==" type="video/mp4">
+</video>
+
+<script>
+const p2=n=>String(n).padStart(2,"0");
+const mmss=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return (h?h+":"+p2(m):m)+":"+p2(s%60);};
+const dstr=d=>d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());
+const tstr=d=>p2(d.getHours())+":"+p2(d.getMinutes())+":"+p2(d.getSeconds());
+const $=id=>document.getElementById(id);
+try{const v=parseInt(localStorage.getItem("spinning_hrmax"));if(v>=140&&v<=220)$("hrmax").value=v;}catch(e){}
+function hrmax(){const v=parseInt($("hrmax").value);return v>=140&&v<=220?v:182;}
+$("hrmax").onchange=()=>{try{localStorage.setItem("spinning_hrmax",String(hrmax()));}catch(e){}};
+const MODE="stufentest";
+let MODEVAR=0;
+
+// ===== Plan =====
+const PLAN=[{name:"Warm-up",sec:180,w:50,kind:"warm"}]
+  .concat([60,80,100,120,140,160,180].map((w,i)=>({name:"Stufe "+(i+1)+"/7",sec:120,w:w,kind:"stage"})))
+  .concat([{name:"Cool-down",sec:180,w:40,kind:"cool"}]);
+const TOTAL=PLAN.reduce((a,s)=>a+s.sec,0);
+const TOL=10;
+console.assert(TOTAL===1200);
+(function(){let at=0;const rows=PLAN.map(s=>{const r="<b>"+mmss(at)+"</b>"+s.name+" · "+s.w+" W";at+=s.sec;return r;});
+  $("plan").innerHTML=rows.join("<br>")+"<br><b>"+mmss(at)+"</b>Ende";})();
+
+// ===== Audio =====
+let ac;
+function ensureAudio(){ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); if(ac.state!=="running") ac.resume(); }
+function tone(freq,t0,dur,gain=.4,type="sine"){
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.type=type;o.frequency.value=freq;o.connect(g);g.connect(ac.destination);
+  g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(gain,t0+.005);
+  g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  o.start(t0);o.stop(t0+dur+.05);
+}
+function bellUp(){ensureAudio();const t=ac.currentTime;[[880,0],[1318,.22]].forEach(([f,d])=>{tone(f,t+d,1.2,.45);tone(f*2,t+d,.8,.18);tone(f*3,t+d,.5,.08);});}
+function beep(){ensureAudio();tone(1000,ac.currentTime,.12,.3,"square");}
+function doneJingle(){ensureAudio();const t=ac.currentTime;[784,988,1175,1568].forEach((f,i)=>tone(f,t+i*.18,.9,.4));}
+
+// ===== Bildschirm anlassen =====
+let wakeLock=null, wlPending=false, running=false;
+const vid=$("wakevid");
+vid.muted=true;vid.setAttribute("playsinline","");vid.setAttribute("webkit-playsinline","");
+function awakeStatus(){
+  const el=$("awake");
+  if(!running){el.textContent="";el.className="";return;}
+  const vidOk=!vid.paused&&!vid.ended;
+  if(wakeLock||vidOk){el.textContent="🔆 Bildschirm bleibt an ("+(wakeLock?"Wake-Lock":"Video")+")";el.className="";}
+  else{el.textContent="⚠️ Bildschirm-Sperre nicht verhindert – hier tippen, sonst Auto-Sperre am Gerät auf „Nie“ stellen";el.className="warn";}
+}
+function keepAwake(){
+  if(!running)return;
+  if(vid.paused){ try{const pr=vid.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){} }
+  if("wakeLock" in navigator && !wakeLock && !wlPending){
+    wlPending=true;
+    navigator.wakeLock.request("screen").then(l=>{
+      wakeLock=l;
+      l.addEventListener("release",()=>{wakeLock=null;awakeStatus();if(running&&document.visibilityState==="visible")keepAwake();});
+    }).catch(()=>{}).finally(()=>{wlPending=false;awakeStatus();});
+  }
+  setTimeout(awakeStatus,600);
+}
+function releaseAwake(){
+  running=false;
+  if(wakeLock){wakeLock.release().catch(()=>{});wakeLock=null;}
+  try{vid.pause();}catch(e){}
+  awakeStatus();
+}
+vid.addEventListener("playing",awakeStatus);
+vid.addEventListener("pause",awakeStatus);
+$("awake").addEventListener("click",keepAwake);
+document.addEventListener("pointerdown",()=>{ if(running){ensureAudio();keepAwake();} },true);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&running){ensureAudio();keepAwake();} });
+setInterval(()=>{ if(running) keepAwake(); },5000);
+
+// ===== Zustand =====
+let active=false,paused=false,timer=null,lastTick=0,lastSave=0;
+let t=0,P=0,sessionStart=null,result=null;
+let series=[],lastSample=-99,hrS=0,hrT=0,hrMaxSeen=0,hrMinSeen=999,zoneSec=[0,0,0,0,0];
+let hrDev=null,hrNow=0;
+const ZNAME=["Z1 sehr locker","Z2 locker","Z3 mittel","Z4 hart","Z5 maximal"];
+const ZLIM=[.60,.70,.80,.90];
+function zoneOf(bpm){const f=bpm/hrmax();let z=0;while(z<4&&f>=ZLIM[z])z++;return z;}
+
+// ===== Puls (Bluetooth-Brustgurt) =====
+function onHr(e){
+  const d=e.target.value,f=d.getUint8(0),v=(f&1)?d.getUint16(1,true):d.getUint8(1);
+  if(v>0&&v<250){hrNow=v;draw();}
+}
+async function hrGatt(){
+  const srv=await hrDev.gatt.connect(),svc=await srv.getPrimaryService("heart_rate");
+  const ch=await svc.getCharacteristic("heart_rate_measurement");
+  ch.addEventListener("characteristicvaluechanged",onHr);
+  await ch.startNotifications();
+}
+async function hrReconnect(){ if(!hrDev)return; try{await hrGatt();}catch(e){setTimeout(hrReconnect,3000);} }
+async function connectHR(){
+  if(!navigator.bluetooth){$("hrinfo").textContent="Bluetooth geht hier nicht – bitte in Chrome öffnen.";return;}
+  try{
+    hrDev=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}]});
+    hrDev.addEventListener("gattserverdisconnected",()=>{hrNow=0;draw();setTimeout(hrReconnect,2000);});
+    $("hrinfo").textContent="Verbinde …";
+    for(let i=1;;i++){
+      try{await hrGatt();break;}
+      catch(err){
+        if(i>=4)throw err;
+        $("hrinfo").textContent="Verbinde … Versuch "+(i+1)+"/4";
+        try{hrDev.gatt.disconnect();}catch(e2){}
+        await new Promise(r=>setTimeout(r,1500));
+      }
+    }
+    $("hrinfo").textContent="✓ Verbunden: "+(hrDev.name||"Gurt");
+  }catch(e){ $("hrinfo").textContent="Nicht verbunden: "+(e.name==="NotFoundError"?"kein Gurt gewählt":(e.message||e.name))+" – Gurt angelegt, nass und in den Android-Einstellungen gekoppelt?"; }
+}
+$("hrbtn").onclick=connectHR;
+
+// ===== Rudergerät (Bluetooth FTMS) =====
+let rowDev=null,rowNow={spm:0,pace:0,watt:0,dist:0,strokes:0,ts:0},rowRaw=[],rowBase=null;
+let rowS=0,rowT=0,rowMaxSpm=0,rowWS=0,rowWT=0;
+function rowActive(){return rowDev&&Date.now()-rowNow.ts<4000&&rowNow.spm>0;}
+function parseRower(dv){
+  let o=2;const f=dv.getUint16(0,true),r={};
+  if(!(f&1)){r.spm=dv.getUint8(o)/2;o+=1;r.strokes=dv.getUint16(o,true);o+=2;}
+  if(f&2)o+=1;
+  if(f&4){r.dist=dv.getUint8(o)|(dv.getUint8(o+1)<<8)|(dv.getUint8(o+2)<<16);o+=3;}
+  if(f&8){r.pace=dv.getUint16(o,true);o+=2;}
+  if(f&16)o+=2;
+  if(f&32){r.watt=dv.getInt16(o,true);o+=2;}
+  return r;
+}
+function onRow(e){
+  const dv=e.target.value;
+  if(rowRaw.length<6){let h="";for(let i=0;i<dv.byteLength;i++)h+=p2(dv.getUint8(i).toString(16));rowRaw.push(h);}
+  let r;try{r=parseRower(dv);}catch(x){return;}
+  if(r.spm!==undefined)rowNow.spm=r.spm;
+  if(r.strokes!==undefined)rowNow.strokes=r.strokes;
+  if(r.dist!==undefined)rowNow.dist=r.dist;
+  if(r.pace!==undefined)rowNow.pace=(r.pace===65535?0:r.pace);
+  if(r.watt!==undefined)rowNow.watt=r.watt;
+  rowNow.ts=Date.now();
+  if(active&&!rowBase)rowBase={strokes:rowNow.strokes,dist:rowNow.dist};
+  draw();
+}
+async function rowGatt(){
+  const srv=await rowDev.gatt.connect(),svc=await srv.getPrimaryService(0x1826);
+  const ch=await svc.getCharacteristic(0x2AD1);
+  ch.addEventListener("characteristicvaluechanged",onRow);
+  await ch.startNotifications();
+}
+async function rowReconnect(){ if(!rowDev)return; try{await rowGatt();}catch(e){setTimeout(rowReconnect,3000);} }
+async function connectRow(all){
+  if(!navigator.bluetooth){$("rowinfo").textContent="Bluetooth geht hier nicht – bitte in Chrome öffnen.";return;}
+  try{
+    rowDev=await navigator.bluetooth.requestDevice(all?{acceptAllDevices:true,optionalServices:[0x1826]}:{filters:[{services:[0x1826]}]});
+    rowDev.addEventListener("gattserverdisconnected",()=>{rowNow.spm=0;draw();setTimeout(rowReconnect,2000);});
+    $("rowinfo").textContent="Verbinde …";
+    for(let i=1;;i++){
+      try{await rowGatt();break;}
+      catch(err){
+        if(i>=4)throw err;
+        $("rowinfo").textContent="Verbinde … Versuch "+(i+1)+"/4";
+        try{rowDev.gatt.disconnect();}catch(e2){}
+        await new Promise(r=>setTimeout(r,1500));
+      }
+    }
+    $("rowinfo").textContent="✓ Verbunden: "+(rowDev.name||"Rudergerät");
+    $("rowdata").classList.remove("hide");draw();
+  }catch(e){
+    $("rowinfo").textContent="Nicht verbunden: "+(e.name==="NotFoundError"?"kein Gerät gefunden/gewählt. Ein paar Züge rudern, App schließen, dann „Alle Geräte anzeigen“ probieren.":(e.message||e.name));
+    if(!rowDev||!rowDev.gatt.connected)rowDev=null;
+  }
+}
+$("rowbtn").onclick=()=>connectRow(false);
+$("rowall").onclick=()=>connectRow(true);
+
+
+// ===== Test-Ablauf =====
+let idx=0,elapsedDone=0,acc=0,stufen=[],cur,wbuf=[];
+function newCur(){cur={t:[],hr:[],w:[],spm:[],pace:[]};}
+const avg=a=>{const v=a.filter(x=>x!=null);return v.length?v.reduce((p,c)=>p+c,0)/v.length:null;};
+const rnd=(x,d)=>x==null?null:Math.round(x*Math.pow(10,d))/Math.pow(10,d);
+function wAvg8(){const v=wbuf.slice(-8);return v.length?avg(v):null;}
+function sample(){
+  const on=rowActive();
+  cur.t.push(t);cur.hr.push(hrNow||null);cur.w.push(on?rowNow.watt:null);cur.spm.push(on?rowNow.spm:null);cur.pace.push(on&&rowNow.pace?rowNow.pace:null);
+  wbuf.push(on?rowNow.watt:null);if(wbuf.length>20)wbuf.shift();
+  if(hrNow){hrS+=hrNow;hrT+=1;if(hrNow>hrMaxSeen)hrMaxSeen=hrNow;}
+  if(Math.floor(elapsedDone+t)%5===0&&(hrNow||on))series.push([Math.round(elapsedDone+t),idx,hrNow||null,on?rowNow.watt:null,on?rowNow.spm:null,on&&rowNow.pace?rowNow.pace:null]);
+}
+function commitStep(){
+  const s=PLAN[idx];
+  const hrv=cur.hr.filter(x=>x);
+  stufen.push({name:s.name,zielW:s.w,sekGeplant:s.sec,sek:Math.round(t),
+    wattAvg:rnd(avg(cur.w),1),wattLetzte60s:rnd(avg(cur.w.slice(-60)),1),
+    spmAvg:rnd(avg(cur.spm),1),sekPro500Avg:rnd(avg(cur.pace),0),
+    pulsLetzte30sAvg:rnd(avg(cur.hr.slice(-30)),0),pulsMax:hrv.length?Math.max.apply(null,hrv):null});
+  elapsedDone+=t;
+}
+function startStep(i,silent){
+  idx=Math.max(0,Math.min(PLAN.length-1,i));
+  t=0;acc=0;lastTick=performance.now();newCur();
+  if(!silent){ if(PLAN[idx].kind==="cool")bellDownLocal();else bellUp(); }
+  draw();
+}
+function bellDownLocal(){ensureAudio();const tt=ac.currentTime;tone(523,tt,1.6,.45);tone(1046,tt,1,.15);}
+function nextStep(){commitStep();if(idx>=PLAN.length-1)finish();else startStep(idx+1);}
+function draw(){
+  if(!active&&!document.body.classList.contains("run")&&!document.body.classList.contains("pause"))return;
+  const s=PLAN[idx];if(!s)return;
+  const rem=Math.max(0,s.sec-t);
+  $("label").textContent=paused?"Pause":s.name;
+  $("time").textContent=mmss(Math.ceil(rem));
+  $("stepinfo").textContent=(idx+1)+" / "+PLAN.length;
+  $("target").textContent="Ziel "+s.w+" W";
+  const w=wAvg8();
+  $("watt").textContent=w!=null?Math.round(w)+" W":"– W";
+  if(w!=null){const d=Math.round(w-s.w);$("diff").textContent=Math.abs(d)<=TOL?"✓ im Ziel":(d<0?"↑ mehr ("+d+" W)":"↓ weniger (+"+d+" W)");}
+  else $("diff").textContent=rowDev?"Rudere los …":"Rudergerät nicht verbunden";
+  let hrt=hrNow?"❤️ "+hrNow:(hrDev?"❤️ …":"");
+  $("hr").textContent=hrt;
+  const on=rowActive();
+  $("stats").textContent=on?rowNow.spm+" Schläge/Min"+(rowNow.pace?" · "+mmss(rowNow.pace)+" /500 m":""):"";
+  const nx=PLAN[idx+1];
+  $("zone").textContent=nx?"Danach: "+nx.name+" · "+nx.w+" W":"Danach: Ende";
+  $("bar").classList.remove("hide");$("bar").firstElementChild.style.width=(100*Math.min(1,(elapsedDone+t)/TOTAL))+"%";
+  document.body.style.background=paused?"":"hsl("+Math.round(215-(s.w-40)*1.3)+",60%,30%)";
+}
+function tick(){
+  const now=performance.now(),dt=(now-lastTick)/1000;lastTick=now;
+  if(paused||!active)return;
+  const s=PLAN[idx];
+  const before=Math.ceil(s.sec-t);
+  t+=Math.min(dt,5);acc+=Math.min(dt,5);
+  while(acc>=1){acc-=1;sample();}
+  const rem=s.sec-t,after=Math.ceil(Math.max(rem,0));
+  if(after!==before&&after>0&&after<=3)beep();
+  if(rem<=0){const over=-rem;t=s.sec;nextStep();if(active&&over>0&&over<1)t=over;return;}
+  draw();
+}
+function begin(){
+  ensureAudio();
+  $("start").classList.add("hide");
+  idx=0;t=0;acc=0;elapsedDone=0;stufen=[];series=[];wbuf=[];hrS=0;hrT=0;hrMaxSeen=0;
+  rowBase=rowDev&&rowNow.ts?{strokes:rowNow.strokes,dist:rowNow.dist}:null;
+  result=null;paused=false;active=true;sessionStart=new Date();
+  $("pause").textContent="Pause";$("end").classList.remove("hide");$("skipbtn").classList.remove("hide");
+  $("summary").classList.add("hide");$("save").classList.add("hide");$("spark").classList.add("hide");
+  document.body.className="run";
+  running=true;keepAwake();
+  newCur();lastTick=performance.now();bellUp();draw();
+  clearInterval(timer);timer=setInterval(tick,100);
+}
+function chartSvg(pts,b){
+  if(pts.length<2)return "";
+  const xs=pts.map(p=>p.w),ys=pts.map(p=>p.hr);
+  const x0=Math.min.apply(null,xs)-10,x1=Math.max.apply(null,xs)+10,y0=Math.min.apply(null,ys)-8,y1=Math.max.apply(null,ys)+8;
+  const X=x=>30+(270)*(x-x0)/(x1-x0),Y=y=>125-110*(y-y0)/(y1-y0);
+  let g='<line x1="30" y1="125" x2="295" y2="125" stroke="#fff" stroke-opacity=".5"/><line x1="30" y1="10" x2="30" y2="125" stroke="#fff" stroke-opacity=".5"/>';
+  g+='<polyline fill="none" stroke="#fff" stroke-width="2" points="'+pts.map(p=>X(p.w).toFixed(1)+","+Y(p.hr).toFixed(1)).join(" ")+'"/>';
+  pts.forEach(p=>{g+='<circle cx="'+X(p.w).toFixed(1)+'" cy="'+Y(p.hr).toFixed(1)+'" r="3.5" fill="#fff"/><text x="'+X(p.w).toFixed(1)+'" y="'+(Y(p.hr)-7).toFixed(1)+'" font-size="9" fill="#fff" text-anchor="middle">'+p.hr+'</text><text x="'+X(p.w).toFixed(1)+'" y="138" font-size="9" fill="#fff" text-anchor="middle">'+Math.round(p.w)+'</text>';});
+  g+='<text x="162" y="149" font-size="9" fill="#fff" text-anchor="middle" fill-opacity=".8">Leistung (W) → Puls (bpm)</text>';
+  return g;
+}
+function buildResult(){
+  const end=new Date();
+  const pts=stufen.filter(s=>s.name.indexOf("Stufe")===0&&s.pulsLetzte30sAvg&&s.wattLetzte60s).map(s=>({w:s.wattLetzte60s,hr:s.pulsLetzte30sAvg}));
+  let reg=null;
+  if(pts.length>=3){const n=pts.length,mx=avg(pts.map(p=>p.w)),my=avg(pts.map(p=>p.hr));
+    let sxy=0,sxx=0;pts.forEach(p=>{sxy+=(p.w-mx)*(p.hr-my);sxx+=(p.w-mx)*(p.w-mx);});
+    if(sxx>0){const b=sxy/sxx,a=my-b*mx;reg={bpmJe10W:rnd(b*10,1),pulsBei100W:rnd(a+b*100,0),pulsBei150W:rnd(a+b*150,0),pulsBei180W:rnd(a+b*180,0)};}}
+  result={typ:"ruder-stufentest",datum:dstr(sessionStart),start:tstr(sessionStart),ende:tstr(end),
+    geplantSek:TOTAL,gesamtSek:Math.round(elapsedDone),maxPulsEinstellung:hrmax(),
+    stufen:stufen,regression:reg,
+    verlaufSpalten:["sekGesamt","stufenNr","puls","watt","schlaegeProMin","sekPro500m"],verlauf:series,rohdatenHex:rowRaw};
+  const lines=stufen.map(s=>s.name+": Ziel "+s.zielW+" · Ist "+(s.wattLetzte60s!=null?Math.round(s.wattLetzte60s):"–")+" W · Puls "+(s.pulsLetzte30sAvg||"–")+" · "+(s.spmAvg!=null?Math.round(s.spmAvg):"–")+"/Min");
+  $("summary").textContent=result.datum+"  "+result.start+"–"+result.ende+"\nDauer "+mmss(result.gesamtSek)+" von "+mmss(TOTAL)+"\n"+lines.join("\n")+
+    (reg?"\n≈ "+reg.bpmJe10W+" bpm je 10 W · 100 W: "+reg.pulsBei100W+" · 150 W: "+reg.pulsBei150W+" · 180 W: "+reg.pulsBei180W:"");
+  $("summary").classList.remove("hide");$("save").classList.remove("hide");
+  const sv=chartSvg(pts);if(sv){$("spark").innerHTML=sv;$("spark").classList.remove("hide");}
+}
+async function saveResult(){
+  if(!result)return;
+  const name="ruderstufentest_"+result.datum+"_"+result.start.slice(0,5).replace(":","-")+".json";
+  const text=JSON.stringify(result,null,2);
+  for(const type of ["application/json","text/plain"]){
+    const file=new File([text],name,{type});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:name});$("zone").textContent="Geteilt – in Google Drive in den Trainingsordner legen.";return;}
+      catch(e){ if(e&&e.name==="AbortError")return; }
+    }
+  }
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));
+  a.download=name;document.body.appendChild(a);a.click();a.remove();
+  $("zone").textContent="Datei heruntergeladen: "+name+" – bitte in den Drive-Trainingsordner legen.";
+}
+let endArm=0;
+function endEarly(){
+  if(!active)return;
+  if(Date.now()-endArm>3000){endArm=Date.now();$("end").textContent="Sicher?";setTimeout(()=>{$("end").textContent="Beenden";},3000);return;}
+  $("end").textContent="Beenden";commitStep();finish();
+}
+function finish(){
+  clearInterval(timer);active=false;document.body.className="done";document.body.style.background="";
+  $("label").textContent="Fertig";$("time").textContent="✓";
+  ["target","watt","diff","hr","stats","zone"].forEach(i=>$(i).textContent="");
+  $("end").classList.add("hide");$("skipbtn").classList.add("hide");$("bar").classList.add("hide");$("rowdata").classList.add("hide");
+  $("pause").textContent="Nochmal";paused=false;doneJingle();
+  buildResult();releaseAwake();
+}
+$("go").onclick=begin;
+$("pause").onclick=()=>{
+  if(!active){location.reload();return;}
+  paused=!paused;$("pause").textContent=paused?"Weiter":"Pause";
+  document.body.className=paused?"pause":"run";
+  lastTick=performance.now();draw();
+};
+$("skipbtn").onclick=()=>{ if(active&&idx<PLAN.length-1){commitStep();startStep(PLAN.length-1);} };
+$("save").onclick=saveResult;
+$("end").onclick=endEarly;
+window.addEventListener("beforeunload",e=>{ if(active){e.preventDefault();e.returnValue="";} });
+</script>
+</body>
+</html>
