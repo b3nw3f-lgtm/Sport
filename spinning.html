@@ -48,6 +48,9 @@
   #start #levels button.on{background:#fff;color:#111}
   #hr{font-size:clamp(26px,8vw,40px);font-weight:800;min-height:1.2em}
   #hrinfo{font-size:13px}
+  #hrt{font-size:20px;font-weight:600;min-height:1.3em}
+  #hrmaxl{font-size:15px;opacity:.9;display:flex;align-items:center;justify-content:center;gap:8px}
+  #hrmax{width:80px;padding:8px;font-size:18px;border-radius:8px;border:0;text-align:center}
   #start #hrbtn{font-size:16px;padding:12px 8px;background:rgba(255,255,255,.15);color:#fff}
   #wakevid{position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:.02;pointer-events:none}
   .hide{display:none!important}
@@ -61,6 +64,8 @@
   <div id="plan"></div>
   <p style="font-size:12px">Schraube = Umdrehungen vom lockeren Anschlag. Die Stufe dreht nur „Schnelle Beine“, „Kraft“ und „Zügig“ weiter zu, Locker, Pausen und Auslaufen bleiben. Der Timer zeigt die Stellung bei jedem Abschnitt und kündigt Änderungen schon in der Pause davor an.</p>
   <div id="resumebox" class="hide"><p id="resumeinfo"></p><button class="primary" id="resume">↻ Fortsetzen</button></div>
+  <label id="hrmaxl">Max-Puls <input id="hrmax" type="number" inputmode="numeric" min="140" max="220" value="182"> bpm</label>
+  <p style="font-size:12px">Zielpuls je Abschnitt wird daraus berechnet (grobe Schätzung 182, passe an, wenn du deinen echten Maximalpuls kennst). Bei 1-Minuten-Intervallen hinkt der Puls hinterher: Das Ziel erreichst du oft erst gegen Ende.</p>
   <button id="hrbtn">❤️ Pulsgurt verbinden</button>
   <p id="hrinfo">Optional: Brustgurt per Bluetooth (Chrome, https). Gurt vorher nicht mit Uhr/App koppeln.</p>
   <button class="primary" id="go">Start</button>
@@ -74,6 +79,7 @@
   <div id="cue"></div>
   <div id="time">0</div>
   <div id="hr"></div>
+  <div id="hrt"></div>
   <div id="next"></div>
   <div id="total"></div>
 </div>
@@ -96,31 +102,31 @@
 // ===== Plan =====
 // type: warm | easy (locker) | fast | hard | cool        sec = Dauer
 // RPE = gefühlte Anstrengung 1–10 (10 = Maximum)
-const L = (sec,cue,e)=>({type:"easy",name:"Locker",sec,e,cue:cue||"Widerstand leicht · gemütlich treten · RPE 3 · durchatmen"});
+const L = (sec,cue,e)=>({type:"easy",name:"Locker",sec,e,z:[.55,.68],cue:cue||"Widerstand leicht · gemütlich treten · RPE 3 · durchatmen"});
 const PLAN = [
-  {type:"warm",block:"Einfahren",name:"Einfahren",sec:300,e:0,cue:"Leichter Widerstand · gleichmäßig treten · RPE 3 · du kannst dich locker unterhalten"},
+  {type:"warm",block:"Einfahren",name:"Einfahren",sec:300,e:0,z:[.55,.65],cue:"Leichter Widerstand · gleichmäßig treten · RPE 3 · du kannst dich locker unterhalten"},
 
   // Block A – Kadenz (schnelle Beine, wenig Widerstand): 4 × (1:00 + 1:00) = 8:00
   ...[1,2,3,4].flatMap(i=>[
-    {type:"fast",block:"A · Beine "+i+"/4",name:"Schnelle Beine",sec:60,e:2,up:1,cue:"Widerstand runter · Beine schnell und rund · RPE 5 · Hüfte ruhig, nicht hüpfen"},
+    {type:"fast",block:"A · Beine "+i+"/4",name:"Schnelle Beine",sec:60,e:2,up:1,z:[.72,.82],cue:"Widerstand runter · Beine schnell und rund · RPE 5 · Hüfte ruhig, nicht hüpfen"},
     {...L(60,null,0),block:"A · Beine "+i+"/4"},
   ]),
   {...L(120,"Locker ausfahren · Wasser trinken",0),block:"Pause"},
 
   // Block B – Widerstand (sitzend, kräftig): 3 × (2:00 + 1:00) = 9:00
   ...[1,2,3].flatMap(i=>[
-    {type:"hard",block:"B · Kraft "+i+"/3",name:"Kraft sitzend",sec:120,e:4,up:1,cue:"Widerstand hoch (zäh, Knie ok) · langsam und kräftig · RPE 6 · sitzen bleiben"},
+    {type:"hard",block:"B · Kraft "+i+"/3",name:"Kraft sitzend",sec:120,e:4,up:1,z:[.78,.85],cue:"Widerstand hoch (zäh, Knie ok) · langsam und kräftig · RPE 6 · sitzen bleiben"},
     {...L(60,null,2),block:"B · Kraft "+i+"/3"},
   ]),
   {...L(120,"Locker ausfahren · Wasser trinken",2),block:"Pause"},
 
   // Block C – Tempo (kurz & zügig): 4 × (1:00 + 2:00) = 12:00
   ...[1,2,3,4].flatMap(i=>[
-    {type:"fast",block:"C · Tempo "+i+"/4",name:"Zügig!",sec:60,e:5,up:1,cue:"Widerstand mittel · schnell und kräftig · RPE 7 · nur noch kurze Sätze"},
+    {type:"fast",block:"C · Tempo "+i+"/4",name:"Zügig!",sec:60,e:5,up:1,z:[.83,.90],cue:"Widerstand mittel · schnell und kräftig · RPE 7 · nur noch kurze Sätze"},
     {...L(120,"Widerstand leicht · RPE 3 · Puls runterkommen lassen",2),block:"C · Tempo "+i+"/4"},
   ]),
 
-  {type:"cool",block:"Auslaufen",name:"Auslaufen",sec:420,e:3,cue:"Leichter Widerstand · ganz locker · RPE 2 · Puls unter 110"},
+  {type:"cool",block:"Auslaufen",name:"Auslaufen",sec:420,e:3,z:[.50,.60],cue:"Leichter Widerstand · ganz locker · RPE 2 · Puls unter 110"},
 ];
 const TOTAL = PLAN.reduce((a,s)=>a+s.sec,0);
 const LABEL={warm:"Einfahren",easy:"Locker",fast:"Schneller",hard:"Kräftig",cool:"Auslaufen"};
@@ -218,7 +224,17 @@ setInterval(()=>{ if(running) keepAwake(); },5000);
 let hrDev=null,hrNow=0,hrStat={s:0,n:0,max:0};
 function hrReset(){hrStat={s:0,n:0,max:0};}
 function hrTake(){return hrStat.n?{avg:Math.round(hrStat.s/hrStat.n),max:hrStat.max}:null;}
-function hrShow(){$("hr").textContent=hrNow?"❤️ "+hrNow:(hrDev?"❤️ …":"");}
+function hrmax(){const v=parseInt($("hrmax").value);return v>=140&&v<=220?v:182;}
+try{const v=parseInt(localStorage.getItem("spinning_hrmax"));if(v>=140&&v<=220)$("hrmax").value=v;}catch(e){}
+$("hrmax").onchange=()=>{try{localStorage.setItem("spinning_hrmax",String(hrmax()));}catch(e){}};
+function hrRange(){const s=PLAN[idx];if(!s||!s.z)return null;const m=hrmax();return [Math.round(m*s.z[0]),Math.round(m*s.z[1])];}
+function hrShow(){
+  const r=hrRange();let txt="";
+  if(hrNow){txt="❤️ "+hrNow;if(r)txt+=hrNow<r[0]?" ↑":hrNow>r[1]?" ↓":" ✓";}
+  else if(hrDev)txt="❤️ …";
+  $("hr").textContent=txt;
+  $("hrt").textContent=r?"🎯 Ziel "+r[0]+"–"+r[1]+" bpm":"";
+}
 function onHr(e){
   const d=e.target.value,f=d.getUint8(0),v=(f&1)?d.getUint16(1,true):d.getUint8(1);
   if(v>0&&v<250){hrNow=v;if(active&&!paused){hrStat.s+=v;hrStat.n++;if(v>hrStat.max)hrStat.max=v;}hrShow();}
@@ -268,6 +284,7 @@ function show(){
   $("cue").textContent=(scr?"🔧 Schraube auf "+scr+"\n":"")+s.cue+(upNext?"\n➡️ Gleich: Schraube auf "+nscr:"");
   $("step").textContent=(idx+1)+" / "+PLAN.length;
   $("blk").textContent=LABEL[s.type];
+  hrShow();
   const nx=PLAN[idx+1];
   $("next").textContent=nx?("Danach: "+nx.name+" ("+mmss(nx.sec)+")"):"Danach: Ende 🎉";
   draw();
@@ -283,7 +300,7 @@ function draw(){
 }
 function commit(){
   const s=PLAN[idx];if(!s)return;
-  log.push({nr:idx+1,typ:s.type,block:s.block||LABEL[s.type],name:s.name,schraube:screwOf(s)||null,geplantSek:s.sec,istSek:Math.round(t*10)/10,start:tstr(stepStart||new Date()),puls:hrTake()});
+  log.push({nr:idx+1,typ:s.type,block:s.block||LABEL[s.type],name:s.name,schraube:screwOf(s)||null,geplantSek:s.sec,istSek:Math.round(t*10)/10,start:tstr(stepStart||new Date()),puls:hrTake(),ziel:hrRange()});
   hrReset();
   elapsedDone+=t;
 }
