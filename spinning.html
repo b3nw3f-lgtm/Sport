@@ -236,9 +236,17 @@ async function connectHR(){
     hrDev=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}]});
     hrDev.addEventListener("gattserverdisconnected",()=>{hrNow=0;hrShow();setTimeout(hrReconnect,2000);});
     $("hrinfo").textContent="Verbinde …";
-    await hrGatt();
+    for(let i=1;;i++){
+      try{await hrGatt();break;}
+      catch(err){
+        if(i>=4)throw err;
+        $("hrinfo").textContent="Verbinde … Versuch "+(i+1)+"/4";
+        try{hrDev.gatt.disconnect();}catch(e2){}
+        await new Promise(r=>setTimeout(r,1500));
+      }
+    }
     $("hrinfo").textContent="✓ Verbunden: "+(hrDev.name||"Gurt");hrShow();
-  }catch(e){ $("hrinfo").textContent="Nicht verbunden: "+(e.name==="NotFoundError"?"kein Gurt gewählt":(e.message||e.name)); }
+  }catch(e){ $("hrinfo").textContent="Nicht verbunden: "+(e.name==="NotFoundError"?"kein Gurt gewählt":(e.message||e.name))+" – Gurt nicht mit Uhr/Garmin-App verbunden? Gurt kurz nass machen, Bluetooth aus/an."; }
 }
 $("hrbtn").onclick=connectHR;
 
