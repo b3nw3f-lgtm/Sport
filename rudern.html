@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Rudern</title>
+<style>
+  :root{--bg:#10141a;--fg:#f2f5f8}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overscroll-behavior:none;touch-action:manipulation;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-user-select:none;user-select:none}
+  body{display:flex;flex-direction:column;padding:16px;gap:10px;transition:background .3s}
+  body.run{background:#0b7285} body.pause{background:#495057} body.done{background:#2f9e44}
+  #top{display:flex;justify-content:space-between;align-items:center;font-size:14px;opacity:.9;gap:8px}
+  #awake{text-align:center;font-size:12px;opacity:.8;min-height:1.2em}
+  #awake.warn{opacity:1;background:rgba(0,0,0,.35);border-radius:8px;padding:6px 8px;font-size:13px}
+  #main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+  #label{font-size:15px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+  #time{font-size:clamp(90px,28vw,190px);font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+  #hr{font-size:clamp(46px,16vw,90px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+  #zone{font-size:18px;opacity:.95;min-height:1.4em}
+  #stats{font-size:16px;opacity:.9;min-height:1.4em;font-variant-numeric:tabular-nums}
+  #bar{height:8px;background:rgba(255,255,255,.25);border-radius:4px;overflow:hidden}
+  #bar div{height:100%;width:0;background:#fff}
+  #btns{display:flex;gap:10px}
+  button{flex:1;padding:18px 8px;font-size:18px;font-weight:600;border:0;border-radius:14px;background:rgba(255,255,255,.2);color:#fff}
+  button.primary{background:#fff;color:#111}
+  button:active{transform:scale(.97)}
+  button.mini{flex:none;padding:4px 12px;font-size:13px;border-radius:10px}
+  #summary{width:100%;max-width:520px;max-height:34vh;overflow:auto;text-align:left;font-size:14px;line-height:1.5;background:rgba(0,0,0,.2);border-radius:12px;padding:10px 12px;white-space:pre-wrap;-webkit-user-select:text;user-select:text}
+  #spark{width:100%;max-width:520px;height:70px;background:rgba(0,0,0,.2);border-radius:12px}
+  #save{width:100%;flex:none;padding:22px 8px;font-size:22px;background:#fff;color:#111;border-radius:18px}
+  #start{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;z-index:5;overflow:auto}
+  #start h1{margin:0;font-size:30px}
+  #start p{margin:0;opacity:.75;max-width:30em;font-size:14px;line-height:1.4}
+  #start button{flex:none;width:100%;max-width:320px;font-size:22px}
+  #modes{display:flex;gap:8px;width:100%;max-width:320px}
+  #start #modes button{flex:1;width:auto;font-size:17px;padding:12px 4px;background:rgba(255,255,255,.15);color:#fff}
+  #start #modes button.on{background:#fff;color:#111}
+  #presets{display:flex;gap:8px;width:100%;max-width:320px}
+  #start #presets button{flex:1;width:auto;font-size:16px;padding:10px 4px;background:rgba(255,255,255,.15);color:#fff}
+  .row{display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px}
+  .row input{width:80px;padding:8px;font-size:18px;border-radius:8px;border:0;text-align:center}
+  #resumebox{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,.1);border-radius:14px;padding:12px;font-size:14px;line-height:1.4}
+  #resumebox p{margin:0;opacity:.9}
+  #start #hrbtn{font-size:16px;padding:12px 8px;background:rgba(255,255,255,.15);color:#fff}
+  #hrinfo{font-size:13px}
+  #rowdata{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 14px;width:100%;max-width:420px}
+  #rowdata div{display:flex;flex-direction:column;font-size:13px;opacity:.95}
+  #rowdata b{font-size:30px;font-variant-numeric:tabular-nums}
+  #start #rowbtn{font-size:16px;padding:12px 8px;background:rgba(255,255,255,.15);color:#fff}
+  #start #rowall{font-size:13px;padding:8px;background:transparent;color:#fff;opacity:.8;text-decoration:underline}
+  #wakevid{position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:.02;pointer-events:none}
+  .hide{display:none!important}
+</style>
+</head>
+<body class="run">
+<div id="start">
+  <h1>Rudern</h1>
+  <p>Offen oder mit Timer. Zeigt Schlagzahl vom Rudergerät und deinen Puls. Gespeichert werden Zeit, Schlagzahl, Puls und Verlauf.</p>
+  <div id="modes"><button id="mOpen">Offen</button><button id="mTimer">Timer</button></div>
+  <div id="presets" class="hide"><button data-m="20">20</button><button data-m="30">30</button><button data-m="45">45</button><button data-m="60">60</button></div>
+  <label class="row hide" id="minrow">Dauer <input id="mins" type="number" inputmode="numeric" min="1" max="300" value="30"> min</label>
+  <label class="row">Max-Puls <input id="hrmax" type="number" inputmode="numeric" min="140" max="220" value="182"> bpm</label>
+  <div id="resumebox" class="hide"><p id="resumeinfo"></p><button class="primary" id="resume">↻ Fortsetzen</button></div>
+  <button id="hrbtn">❤️ Pulsgurt verbinden</button>
+  <p id="hrinfo">Optional: Brustgurt per Bluetooth (Chrome). Der Gurt muss vorher einmal in den Android-Einstellungen gekoppelt sein.</p>
+  <button id="rowbtn">🚣 Rudergerät verbinden</button>
+  <button id="rowall">Rudergerät nicht in der Liste? Alle Geräte anzeigen</button>
+  <p id="rowinfo">Rudergerät einschalten und ein paar Züge rudern, dann antippen. Die Domyos-App sollte geschlossen sein.</p>
+  <button class="primary" id="go">Start</button>
+</div>
+
+<div id="top"><span id="modetxt"></span><span id="stepinfo"></span><button id="end" class="mini">Beenden</button></div>
+<div id="awake"></div>
+<div id="main">
+  <div id="label"></div>
+  <div id="time">0:00</div>
+  <div id="rowdata" class="hide"></div>
+  <div id="hr"></div>
+  <div id="zone"></div>
+  <div id="stats"></div>
+</div>
+<div id="bar" class="hide"><div></div></div>
+<svg id="spark" class="hide" viewBox="0 0 300 70" preserveAspectRatio="none"></svg>
+<div id="summary" class="hide"></div>
+<button id="save" class="hide">💾 Ergebnis speichern (Drive)</button>
+<div id="btns">
+  <button id="pause" class="primary">Pause</button>
+</div>
+
+<video id="wakevid" muted playsinline loop webkit-playsinline>
+  <source src="data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwEAAAAAAAHiEU2bdLpNu4tTq4QVSalmU6yBoU27i1OrhBZUrmtTrIHYTbuMU6uEElTDZ1OsggEeTbuMU6uEHFO7a1OsggHM7AEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmsirXsYMPQkBNgI1MYXZmNjAuMTYuMTAwV0GNTGF2ZjYwLjE2LjEwMESJiECPQAAAAAAAFlSua8GuAQAAAAAAADjXgQFzxYgAYkuwHrZd0ZyBACK1nIN1bmSIgQCGhVZfVlA4g4EBI+ODhDuaygDgibCBELqBEJqBAhJUw2f8c3OgY8CAZ8iaRaOHRU5DT0RFUkSHjUxhdmY2MC4xNi4xMDBzc9ZjwItjxYgAYkuwHrZd0WfIoUWjh0VOQ09ERVJEh5RMYXZjNjAuMzEuMTAyIGxpYnZweGfIoUWjiERVUkFUSU9ORIeTMDA6MDA6MDEuMDAwMDAwMDAwAB9DtnWo54EAo6OBAACAEAIAnQEqEAAQAABHCIWFiJmEiAICAAwNYAD+/6tQgBxTu2uRu4+zgQC3iveBAfGCAZ/wgQM=" type="video/webm">
+  <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAMVbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAj90cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAG3bWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAQABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABYm1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAASJzdGJsAAAAvnN0c2QAAAAAAAAAAQAAAK5hdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAANGF2Y0MBZAAK/+EAF2dkAAqs2V7ARAAAAwAEAAADAAg8SJZYAQAGaOvjyyLA/fj4AAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAABYoAAAWKAAAABhzdHRzAAAAAAAAAAEAAAABAABAAAAAABxzdHNjAAAAAAAAAAEAAAABAAAAAQAAAAEAAAAUc3RzegAAAAAAAALFAAAAAQAAABRzdGNvAAAAAAAAAAEAAANFAAAAYnVkdGEAAABabWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAtaWxzdAAAACWpdG9vAAAAHWRhdGEAAAABAAAAAExhdmY2MC4xNi4xMDAAAAAIZnJlZQAAAs1tZGF0AAACrQYF//+p3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzEwOCAzMWUxOWY5IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyMyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTEgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAAQZYiEABX//vfJ78Cm69vfgQ==" type="video/mp4">
+</video>
+
+<script>
+const p2=n=>String(n).padStart(2,"0");
+const mmss=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return (h?h+":"+p2(m):m)+":"+p2(s%60);};
+const dstr=d=>d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());
+const tstr=d=>p2(d.getHours())+":"+p2(d.getMinutes())+":"+p2(d.getSeconds());
+const $=id=>document.getElementById(id);
+
+// ===== Einstellungen =====
+let MODE="open";
+try{const v=localStorage.getItem("rudern_mode");if(v==="open"||v==="timer")MODE=v;const m=parseInt(localStorage.getItem("rudern_mins"));if(m>=1&&m<=300)$("mins").value=m;}catch(e){}
+try{const v=parseInt(localStorage.getItem("spinning_hrmax"));if(v>=140&&v<=220)$("hrmax").value=v;}catch(e){}
+function hrmax(){const v=parseInt($("hrmax").value);return v>=140&&v<=220?v:182;}
+function mins(){const v=parseInt($("mins").value);return v>=1&&v<=300?v:30;}
+function setMode(m){
+  MODE=m;try{localStorage.setItem("rudern_mode",m);}catch(e){}
+  $("mOpen").classList.toggle("primary",m==="open");$("mOpen").classList.toggle("on",m==="open");
+  $("mTimer").classList.toggle("on",m==="timer");
+  $("presets").classList.toggle("hide",m!=="timer");$("minrow").classList.toggle("hide",m!=="timer");
+}
+$("mOpen").onclick=()=>setMode("open");$("mTimer").onclick=()=>setMode("timer");
+document.querySelectorAll("#presets button").forEach(b=>b.onclick=()=>{$("mins").value=b.dataset.m;});
+$("hrmax").onchange=()=>{try{localStorage.setItem("spinning_hrmax",String(hrmax()));}catch(e){}};
+$("mins").onchange=()=>{try{localStorage.setItem("rudern_mins",String(mins()));}catch(e){}};
+setMode(MODE);
+
+// ===== Audio =====
+let ac;
+function ensureAudio(){ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); if(ac.state!=="running") ac.resume(); }
+function tone(freq,t0,dur,gain=.4,type="sine"){
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.type=type;o.frequency.value=freq;o.connect(g);g.connect(ac.destination);
+  g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(gain,t0+.005);
+  g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  o.start(t0);o.stop(t0+dur+.05);
+}
+function bellUp(){ensureAudio();const t=ac.currentTime;[[880,0],[1318,.22]].forEach(([f,d])=>{tone(f,t+d,1.2,.45);tone(f*2,t+d,.8,.18);tone(f*3,t+d,.5,.08);});}
+function beep(){ensureAudio();tone(1000,ac.currentTime,.12,.3,"square");}
+function doneJingle(){ensureAudio();const t=ac.currentTime;[784,988,1175,1568].forEach((f,i)=>tone(f,t+i*.18,.9,.4));}
+
+// ===== Bildschirm anlassen =====
+let wakeLock=null, wlPending=false, running=false;
+const vid=$("wakevid");
+vid.muted=true;vid.setAttribute("playsinline","");vid.setAttribute("webkit-playsinline","");
+function awakeStatus(){
+  const el=$("awake");
+  if(!running){el.textContent="";el.className="";return;}
+  const vidOk=!vid.paused&&!vid.ended;
+  if(wakeLock||vidOk){el.textContent="🔆 Bildschirm bleibt an ("+(wakeLock?"Wake-Lock":"Video")+")";el.className="";}
+  else{el.textContent="⚠️ Bildschirm-Sperre nicht verhindert – hier tippen, sonst Auto-Sperre am Gerät auf „Nie“ stellen";el.className="warn";}
+}
+function keepAwake(){
+  if(!running)return;
+  if(vid.paused){ try{const pr=vid.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){} }
+  if("wakeLock" in navigator && !wakeLock && !wlPending){
+    wlPending=true;
+    navigator.wakeLock.request("screen").then(l=>{
+      wakeLock=l;
+      l.addEventListener("release",()=>{wakeLock=null;awakeStatus();if(running&&document.visibilityState==="visible")keepAwake();});
+    }).catch(()=>{}).finally(()=>{wlPending=false;awakeStatus();});
+  }
+  setTimeout(awakeStatus,600);
+}
+function releaseAwake(){
+  running=false;
+  if(wakeLock){wakeLock.release().catch(()=>{});wakeLock=null;}
+  try{vid.pause();}catch(e){}
+  awakeStatus();
+}
+vid.addEventListener("playing",awakeStatus);
+vid.addEventListener("pause",awakeStatus);
+$("awake").addEventListener("click",keepAwake);
+document.addEventListener("pointerdown",()=>{ if(running){ensureAudio();keepAwake();} },true);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&running){ensureAudio();keepAwake();} });
+setInterval(()=>{ if(running) keepAwake(); },5000);
+
+// ===== Zustand =====
+let active=false,paused=false,timer=null,lastTick=0,lastSave=0;
+let t=0,P=0,sessionStart=null,result=null;
+let series=[],lastSample=-99,hrS=0,hrT=0,hrMaxSeen=0,hrMinSeen=999,zoneSec=[0,0,0,0,0];
+let hrDev=null,hrNow=0;
+const ZNAME=["Z1 sehr locker","Z2 locker","Z3 mittel","Z4 hart","Z5 maximal"];
+const ZLIM=[.60,.70,.80,.90];
+function zoneOf(bpm){const f=bpm/hrmax();let z=0;while(z<4&&f>=ZLIM[z])z++;return z;}
+
+// ===== Puls (Bluetooth-Brustgurt) =====
+function onHr(e){
+  const d=e.target.value,f=d.getUint8(0),v=(f&1)?d.getUint16(1,true):d.getUint8(1);
+  if(v>0&&v<250){hrNow=v;draw();}
+}
+async function hrGatt(){
+  const srv=await hrDev.gatt.connect(),svc=await srv.getPrimaryService("heart_rate");
+  const ch=await svc.getCharacteristic("heart_rate_measurement");
+  ch.addEventListener("characteristicvaluechanged",onHr);
+  await ch.startNotifications();
+}
+async function hrReconnect(){ if(!hrDev)return; try{await hrGatt();}catch(e){setTimeout(hrReconnect,3000);} }
+async function connectHR(){
+  if(!navigator.bluetooth){$("hrinfo").textContent="Bluetooth geht hier nicht – bitte in Chrome öffnen.";return;}
+  try{
+    hrDev=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}]});
+    hrDev.addEventListener("gattserverdisconnected",()=>{hrNow=0;draw();setTimeout(hrReconnect,2000);});
+    $("hrinfo").textContent="Verbinde …";
+    for(let i=1;;i++){
+      try{await hrGatt();break;}
+      catch(err){
+        if(i>=4)throw err;
+        $("hrinfo").textContent="Verbinde … Versuch "+(i+1)+"/4";
+        try{hrDev.gatt.disconnect();}catch(e2){}
+        await new Promise(r=>setTimeout(r,1500));
+      }
+    }
+    $("hrinfo").textContent="✓ Verbunden: "+(hrDev.name||"Gurt");
+  }catch(e){ $("hrinfo").textContent="Nicht verbunden: "+(e.name==="NotFoundError"?"kein Gurt gewählt":(e.message||e.name))+" – Gurt angelegt, nass und in den Android-Einstellungen gekoppelt?"; }
+}
+$("hrbtn").onclick=connectHR;
+
+// ===== Rudergerät (Bluetooth FTMS) =====
+let rowDev=null,rowNow={spm:0,pace:0,watt:0,dist:0,strokes:0,ts:0},rowRaw=[],rowBase=null;
+let rowS=0,rowT=0,rowMaxSpm=0,rowWS=0,rowWT=0;
+function rowActive(){return rowDev&&Date.now()-rowNow.ts<4000&&rowNow.spm>0;}
+function parseRower(dv){
+  let o=2;const f=dv.getUint16(0,true),r={};
+  if(!(f&1)){r.spm=dv.getUint8(o)/2;o+=1;r.strokes=dv.getUint16(o,true);o+=2;}
+  if(f&2)o+=1;
+  if(f&4){r.dist=dv.getUint8(o)|(dv.getUint8(o+1)<<8)|(dv.getUint8(o+2)<<16);o+=3;}
+  if(f&8){r.pace=dv.getUint16(o,true);o+=2;}
+  if(f&16)o+=2;
+  if(f&32){r.watt=dv.getInt16(o,true);o+=2;}
+  return r;
+}
+function onRow(e){
+  const dv=e.target.value;
+  if(rowRaw.length<6){let h="";for(let i=0;i<dv.byteLength;i++)h+=p2(dv.getUint8(i).toString(16));rowRaw.push(h);}
+  let r;try{r=parseRower(dv);}catch(x){return;}
+  if(r.spm!==undefined)rowNow.spm=r.spm;
+  if(r.strokes!==undefined)rowNow.strokes=r.strokes;
+  if(r.dist!==undefined)rowNow.dist=r.dist;
+  if(r.pace!==undefined)rowNow.pace=(r.pace===65535?0:r.pace);
+  if(r.watt!==undefined)rowNow.watt=r.watt;
+  rowNow.ts=Date.now();
+  if(active&&!rowBase)rowBase={strokes:rowNow.strokes,dist:rowNow.dist};
+  draw();
+}
+async function rowGatt(){
+  const srv=await rowDev.gatt.connect(),svc=await srv.getPrimaryService(0x1826);
+  const ch=await svc.getCharacteristic(0x2AD1);
+  ch.addEventListener("characteristicvaluechanged",onRow);
+  await ch.startNotifications();
+}
+async function rowReconnect(){ if(!rowDev)return; try{await rowGatt();}catch(e){setTimeout(rowReconnect,3000);} }
+async function connectRow(all){
+  if(!navigator.bluetooth){$("rowinfo").textContent="Bluetooth geht hier nicht – bitte in Chrome öffnen.";return;}
+  try{
+    rowDev=await navigator.bluetooth.requestDevice(all?{acceptAllDevices:true,optionalServices:[0x1826]}:{filters:[{services:[0x1826]}]});
+    rowDev.addEventListener("gattserverdisconnected",()=>{rowNow.spm=0;draw();setTimeout(rowReconnect,2000);});
+    $("rowinfo").textContent="Verbinde …";
+    for(let i=1;;i++){
+      try{await rowGatt();break;}
+      catch(err){
+        if(i>=4)throw err;
+        $("rowinfo").textContent="Verbinde … Versuch "+(i+1)+"/4";
+        try{rowDev.gatt.disconnect();}catch(e2){}
+        await new Promise(r=>setTimeout(r,1500));
+      }
+    }
+    $("rowinfo").textContent="✓ Verbunden: "+(rowDev.name||"Rudergerät");
+    $("rowdata").classList.remove("hide");draw();
+  }catch(e){
+    $("rowinfo").textContent="Nicht verbunden: "+(e.name==="NotFoundError"?"kein Gerät gefunden/gewählt. Ein paar Züge rudern, App schließen, dann „Alle Geräte anzeigen“ probieren.":(e.message||e.name));
+    if(!rowDev||!rowDev.gatt.connected)rowDev=null;
+  }
+}
+$("rowbtn").onclick=()=>connectRow(false);
+$("rowall").onclick=()=>connectRow(true);
+
+// ===== Anzeige =====
+function draw(){
+  const s=MODE==="timer"?Math.max(0,P-t):t;
+  $("time").textContent=mmss(MODE==="timer"?Math.ceil(s):s);
+  $("label").textContent=paused?"Pause":(MODE==="timer"?"Noch":"Zeit");
+  $("top").firstElementChild.textContent=MODE==="timer"?"Timer "+mmss(P):"Offen";
+  $("stepinfo").textContent=MODE==="timer"?"gerudert "+mmss(t):"";
+  if(MODE==="timer"){$("bar").classList.remove("hide");$("bar").firstElementChild.style.width=(100*Math.min(1,t/P))+"%";}
+  if(hrNow){$("hr").textContent="❤️ "+hrNow;$("zone").textContent=ZNAME[zoneOf(hrNow)]+" · "+Math.round(100*hrNow/hrmax())+" % von "+hrmax();}
+  else{$("hr").textContent=hrDev?"❤️ …":"";$("zone").textContent="";}
+  if(rowDev){
+    const on=rowActive(),pc=rowNow.pace;
+    const cell=(l,v)=>"<div><b>"+v+"</b>"+l+"</div>";
+    $("rowdata").innerHTML=cell("Schläge/Min",on?rowNow.spm:"–")+cell("pro 500 m",on&&pc?mmss(pc):"–")+cell("Watt",on?rowNow.watt:"–")+
+      cell("Meter",rowBase?rowNow.dist-rowBase.dist:"–")+cell("Schläge",rowBase?rowNow.strokes-rowBase.strokes:"–")+cell("Ø Schläge/Min",rowT>0?(rowS/rowT).toFixed(1):"–");
+  }
+  $("stats").textContent=hrT>0?"Ø "+Math.round(hrS/hrT)+" · max "+hrMaxSeen+" bpm":"";
+}
+
+// ===== Ablauf =====
+function tick(){
+  const now=performance.now(),dt=(now-lastTick)/1000;lastTick=now;
+  if(paused||!active)return;
+  const before=Math.ceil(P-t);
+  t+=Math.min(dt,5);
+  if(hrNow){
+    hrS+=hrNow*dt;hrT+=dt;zoneSec[zoneOf(hrNow)]+=dt;
+    if(hrNow>hrMaxSeen)hrMaxSeen=hrNow;if(hrNow<hrMinSeen)hrMinSeen=hrNow;
+  }
+  const rowOn=rowActive();
+  if(rowOn){rowS+=rowNow.spm*dt;rowT+=dt;if(rowNow.spm>rowMaxSpm)rowMaxSpm=rowNow.spm;if(rowNow.watt){rowWS+=rowNow.watt*dt;rowWT+=dt;}}
+  if((hrNow||rowOn)&&t-lastSample>=5){lastSample=t;series.push([Math.round(t),hrNow||null,rowOn?rowNow.spm:null,rowOn&&rowNow.pace?rowNow.pace:null,rowOn?rowNow.watt:null]);}
+  if(now-lastSave>1000){lastSave=now;saveState();}
+  if(MODE==="timer"){
+    const after=Math.ceil(Math.max(P-t,0));
+    if(after!==before&&after>0&&after<=3)beep();
+    if(t>=P){t=P;finish();return;}
+  }
+  draw();
+}
+function begin(){
+  ensureAudio();
+  P=mins()*60;
+  $("start").classList.add("hide");
+  t=0;series=[];lastSample=-99;hrS=0;hrT=0;hrMaxSeen=0;hrMinSeen=999;zoneSec=[0,0,0,0,0];
+  rowS=0;rowT=0;rowMaxSpm=0;rowWS=0;rowWT=0;rowBase=rowDev&&rowNow.ts?{strokes:rowNow.strokes,dist:rowNow.dist}:null;
+  result=null;paused=false;active=true;sessionStart=new Date();
+  $("pause").textContent="Pause";$("end").classList.remove("hide");
+  $("summary").classList.add("hide");$("save").classList.add("hide");$("spark").classList.add("hide");
+  document.body.className="run";
+  running=true;keepAwake();
+  lastTick=performance.now();
+  if(MODE==="timer")bellUp();
+  saveState();draw();
+  clearInterval(timer);timer=setInterval(tick,100);
+}
+function sparkSvg(){
+  const ser=series.filter(x=>x[1]);
+  if(ser.length<2)return "";
+  const maxT=ser[ser.length-1][0]||1;
+  const lo=Math.min(...ser.map(x=>x[1]))-5,hi=Math.max(...ser.map(x=>x[1]))+5;
+  const pts=ser.map(x=>(300*x[0]/maxT).toFixed(1)+","+(66-62*(x[1]-lo)/(hi-lo)).toFixed(1)).join(" ");
+  return '<polyline fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" points="'+pts+'"/>';
+}
+function buildResult(){
+  const end=new Date(),zs=zoneSec.map(x=>Math.round(x));
+  const avg=hrT>0?Math.round(hrS/hrT):null;
+  result={typ:"rudern",datum:dstr(sessionStart),start:tstr(sessionStart),ende:tstr(end),
+    modus:MODE,geplantSek:MODE==="timer"?P:null,gesamtSek:Math.round(t),
+    maxPulsEinstellung:hrmax(),
+    puls:avg?{avg:avg,max:hrMaxSeen,min:hrMinSeen<999?hrMinSeen:null}:null,
+    zonenSek:avg?{Z1_unter60:zs[0],Z2_60bis70:zs[1],Z3_70bis80:zs[2],Z4_80bis90:zs[3],Z5_ueber90:zs[4]}:null,
+    rudern:rowT>0?{schlaegeProMinAvg:Math.round(rowS/rowT*10)/10,schlaegeProMinMax:rowMaxSpm,
+      schlaege:rowBase?rowNow.strokes-rowBase.strokes:null,meter:rowBase?rowNow.dist-rowBase.dist:null,
+      wattAvg:rowWT>0?Math.round(rowWS/rowWT):null,rohdatenHex:rowRaw}:null,
+    verlaufSpalten:["sek","puls","schlaegeProMin","sekPro500m","watt"],
+    verlauf:series};
+  $("summary").textContent=result.datum+"  "+result.start+"–"+result.ende+"\n"+
+    "Zeit: "+mmss(result.gesamtSek)+(MODE==="timer"?" (Ziel "+mmss(P)+")":"")+
+    (result.rudern?"\nSchläge/Min Ø "+result.rudern.schlaegeProMinAvg+" · max "+result.rudern.schlaegeProMinMax+(result.rudern.schlaege!==null?" · "+result.rudern.schlaege+" Schläge · "+result.rudern.meter+" m":"")+(result.rudern.wattAvg!==null?" · Ø "+result.rudern.wattAvg+" W":""):"")+
+    (avg?"\nPuls Ø "+avg+" · max "+hrMaxSeen+" · min "+result.puls.min+" bpm\n"+
+      ZNAME.map((n,i)=>n+": "+mmss(zs[i])).join("\n"):"\nKein Puls aufgezeichnet");
+  $("summary").classList.remove("hide");$("save").classList.remove("hide");
+  const sv=sparkSvg();if(sv){$("spark").innerHTML=sv;$("spark").classList.remove("hide");}
+}
+async function saveResult(){
+  if(!result)return;
+  const name="rudern_"+result.datum+"_"+result.start.slice(0,5).replace(":","-")+".json";
+  const text=JSON.stringify(result,null,2);
+  for(const type of ["application/json","text/plain"]){
+    const file=new File([text],name,{type});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:name});$("zone").textContent="Geteilt – in Google Drive in den Trainingsordner legen.";return;}
+      catch(e){ if(e&&e.name==="AbortError")return; }
+    }
+  }
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));
+  a.download=name;document.body.appendChild(a);a.click();a.remove();
+  $("zone").textContent="Datei heruntergeladen: "+name+" – bitte in den Drive-Trainingsordner legen.";
+}
+let endArm=0;
+function endEarly(){
+  if(!active)return;
+  if(Date.now()-endArm>3000){endArm=Date.now();$("end").textContent="Sicher?";setTimeout(()=>{$("end").textContent="Beenden";},3000);return;}
+  $("end").textContent="Beenden";finish();
+}
+function finish(){
+  clearInterval(timer);active=false;clearState();document.body.className="done";
+  $("label").textContent="Fertig";$("time").textContent=mmss(t);
+  $("hr").textContent="";$("zone").textContent="";$("stats").textContent="";
+  $("end").classList.add("hide");$("bar").classList.add("hide");
+  $("pause").textContent="Nochmal";paused=false;doneJingle();
+  buildResult();releaseAwake();
+}
+$("go").onclick=begin;
+$("pause").onclick=()=>{
+  if(!active){location.reload();return;}
+  paused=!paused;$("pause").textContent=paused?"Weiter":"Pause";
+  document.body.className=paused?"pause":"run";
+  lastTick=performance.now();saveState();draw();
+};
+$("save").onclick=saveResult;
+$("end").onclick=endEarly;
+
+// ===== Stand sichern & nach Neuladen fortsetzen =====
+const KEY="rudern_state_v1";
+function saveState(){
+  if(!active||!sessionStart)return;
+  try{localStorage.setItem(KEY,JSON.stringify({mode:MODE,P,t,paused,series,hrS,hrT,hrMaxSeen,hrMinSeen,zoneSec,lastSample,sessionStart:sessionStart.toISOString(),savedAt:Date.now()}));}catch(e){}
+}
+function clearState(){try{localStorage.removeItem(KEY);}catch(e){}}
+function loadState(){try{const j=localStorage.getItem(KEY);return j?JSON.parse(j):null;}catch(e){return null;}}
+function resume(){
+  const sv=loadState();if(!sv)return;
+  ensureAudio();
+  MODE=sv.mode;P=sv.P;t=sv.t;paused=!!sv.paused;series=sv.series||[];
+  hrS=sv.hrS;hrT=sv.hrT;hrMaxSeen=sv.hrMaxSeen;hrMinSeen=sv.hrMinSeen;zoneSec=sv.zoneSec;lastSample=sv.lastSample;
+  if(!paused)t+=(Date.now()-sv.savedAt)/1000;   // Zeit lief weiter (ohne Puls)
+  sessionStart=new Date(sv.sessionStart);
+  $("start").classList.add("hide");$("summary").classList.add("hide");$("save").classList.add("hide");
+  active=true;
+  if(MODE==="timer"&&t>=P){t=P;finish();return;}
+  running=true;keepAwake();$("end").classList.remove("hide");
+  $("pause").textContent=paused?"Weiter":"Pause";
+  document.body.className=paused?"pause":"run";
+  lastTick=performance.now();draw();saveState();
+  clearInterval(timer);timer=setInterval(tick,100);
+}
+$("resume").onclick=resume;
+window.addEventListener("pagehide",saveState);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") saveState(); });
+window.addEventListener("beforeunload",e=>{ if(active){e.preventDefault();e.returnValue="";} });
+(function initResume(){
+  const sv=loadState();
+  if(!sv||typeof sv.t!=="number"||Date.now()-sv.savedAt>3*3600e3){ if(sv)clearState(); return; }
+  const ago=Math.round((Date.now()-sv.savedAt)/1000);
+  $("resumeinfo").textContent="Gespeicherter Stand von vor "+mmss(ago)+": Fahrzeit "+mmss(sv.t+(sv.paused?0:ago))+" ("+(sv.mode==="timer"?"Timer "+mmss(sv.P):"offen")+").";
+  $("resumebox").classList.remove("hide");
+  $("go").textContent="Neu starten";$("go").classList.remove("primary");
+})();
+</script>
+</body>
+</html>
