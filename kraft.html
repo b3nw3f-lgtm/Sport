@@ -116,7 +116,7 @@ const PLAN = [
     P(120,r<3?"Pause · Wasser trinken":"Wechsel zur Langhantel · Wasser trinken",b),
   ];}),
 
-  // Langhantel: 3 x 4 Übungen, je 10 Wdh, 90 Sek Pause. Runde 2 rückwärts, damit die Scheiben nur 2x gewechselt werden:
+  // Langhantel: 3 x 4 Übungen, je 10 Wdh, 30 Sek Pause (45 beim Scheibenwechsel, 60 zwischen den Runden). Runde 2 rückwärts, damit die Scheiben nur 2x gewechselt werden:
   // R1: Kreuzheben 15, Rudern 15, Schulterdrücken 10, RDL 10 | R2: RDL 10, Schulterdrücken 10, Rudern 15, Kreuzheben 15 | R3 wie R1
   ...[1,2,3].flatMap(r=>{const b="Langhantel · Runde "+r+"/3";
     const ex={
@@ -125,7 +125,11 @@ const PLAN = [
       sd:()=>W("Schulterdrücken stehend","10 kg · 10 Wdh · Rippen unten, Bauch fest",b,45),
       rd:()=>W("Romanian Deadlift","10 kg · 10 Wdh · langsam, 3 Sek runter · "+RUECKEN,b,45)};
     const order=r===2?["rd","sd","ru","kh"]:["kh","ru","sd","rd"];
-    return order.flatMap((k,i)=>[ex[k](),P(90,i<3?"Atmen · Wasser":(r<3?"Pause · Wasser trinken":"Wechsel zum Core"),b)]);
+    const kg={kh:15,ru:15,sd:10,rd:10};
+    return order.flatMap((k,i)=>{
+      if(i===3)return [ex[k](),P(60,r<3?"Pause · Wasser trinken":"Wechsel zum Core",b)];
+      const wechsel=kg[k]!==kg[order[i+1]];
+      return [ex[k](),wechsel?P(45,"Scheiben wechseln: "+kg[order[i+1]]+" kg",b):P(30,"Atmen",b)];});
   }),
 
   // Core: 2 Runden
