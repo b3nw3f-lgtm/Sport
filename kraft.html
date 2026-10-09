@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Kraft Timer</title>
+<style>
+  :root{--bg:#10141a;--fg:#f2f5f8}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overscroll-behavior:none;touch-action:manipulation;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-user-select:none;user-select:none}
+  body{display:flex;flex-direction:column;padding:16px;gap:10px;transition:background .3s}
+  body.warm{background:#0b7285} body.easy{background:#1c7ed6} body.fast{background:#e8590c}
+  body.hard{background:#c92a2a} body.cool{background:#2b8a3e} body.done{background:#2f9e44}
+  #top{display:flex;justify-content:space-between;align-items:center;font-size:14px;opacity:.9;gap:8px}
+  #awake{text-align:center;font-size:12px;opacity:.8;min-height:1.2em}
+  #awake.warn{opacity:1;background:rgba(0,0,0,.35);border-radius:8px;padding:6px 8px;font-size:13px}
+  #main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+  #block{font-size:15px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+  #name{font-size:clamp(34px,10vw,56px);font-weight:800;line-height:1.05}
+  #cue{font-size:clamp(18px,5vw,24px);opacity:.95;min-height:4em;line-height:1.3;white-space:pre-line}
+  #time{font-size:clamp(110px,36vw,220px);font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+  #next{font-size:16px;opacity:.9;min-height:1.4em}
+  #total{font-size:14px;opacity:.8;font-variant-numeric:tabular-nums}
+  #bar,#tbar{height:8px;background:rgba(255,255,255,.25);border-radius:4px;overflow:hidden}
+  #tbar{height:4px}
+  #bar div,#tbar div{height:100%;width:0;background:#fff}
+  #btns{display:flex;gap:10px}
+  button{flex:1;padding:18px 8px;font-size:18px;font-weight:600;border:0;border-radius:14px;background:rgba(255,255,255,.2);color:#fff}
+  button.primary{background:#fff;color:#111}
+  button:active{transform:scale(.97)}
+  button.mini{flex:none;padding:4px 12px;font-size:13px;border-radius:10px}
+  #summary{width:100%;max-width:520px;max-height:30vh;overflow:auto;text-align:left;font-size:14px;line-height:1.5;background:rgba(0,0,0,.2);border-radius:12px;padding:10px 12px;white-space:pre-wrap;-webkit-user-select:text;user-select:text}
+  #save{width:100%;flex:none;padding:22px 8px;font-size:22px;background:#fff;color:#111;border-radius:18px}
+  #start{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;text-align:center;z-index:5;overflow:auto}
+  #start h1{margin:0;font-size:30px}
+  #start p{margin:0;opacity:.75;max-width:30em;font-size:15px;line-height:1.4}
+  #start button{flex:none;width:100%;max-width:320px;font-size:22px}
+  #plan{width:100%;max-width:420px;text-align:left;font-size:13px;line-height:1.5;background:rgba(255,255,255,.07);border-radius:12px;padding:10px 12px}
+  #plan b{display:inline-block;min-width:3.6em}
+  #resumebox{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,.1);border-radius:14px;padding:12px;font-size:14px;line-height:1.4}
+  #resumebox p{margin:0;opacity:.9}
+  #levels{display:flex;gap:8px;width:100%;max-width:420px}
+  #start #levels button{flex:1;width:auto;max-width:none;font-size:15px;padding:10px 4px;line-height:1.25;background:rgba(255,255,255,.15);color:#fff}
+  #start #levels button small{display:block;font-size:11px;font-weight:400;opacity:.85}
+  #start #levels button.on{background:#fff;color:#111}
+  #fertig{width:100%;flex:none;padding:30px 8px;font-size:30px;background:#fff;color:#111;border-radius:18px}
+  #hr{font-size:clamp(26px,8vw,40px);font-weight:800;min-height:1.2em}
+  #hrinfo{font-size:13px}
+  #start #hrbtn{font-size:16px;padding:12px 8px;background:rgba(255,255,255,.15);color:#fff}
+  #wakevid{position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:.02;pointer-events:none}
+  .hide{display:none!important}
+</style>
+</head>
+<body class="warm">
+<div id="start">
+  <h1>Kraft Freitag · ca. 60 Min</h1>
+  <p>Ringe, Langhantel (Oberkörper und Rücken) und Core, dazu Spinning zum Ein- und Ausfahren. Bei Sätzen mit Wiederholungen läuft die Zeit hoch: Tippe auf „Fertig“, wenn der Satz durch ist. Pausen, Stütz und Mobilisation haben feste Timer, Klingel zeigt den Wechsel.</p>
+  <div id="plan"></div>
+  <p style="font-size:12px">Rücken: Bei Kreuzheben und Romanian Deadlift gerade bleiben und aus den Beinen heben. Sticht der untere Rücken, Gewicht runter.</p>
+  <div id="resumebox" class="hide"><p id="resumeinfo"></p><button class="primary" id="resume">↻ Fortsetzen</button></div>
+  <button id="hrbtn">❤️ Pulsgurt verbinden</button>
+  <p id="hrinfo">Optional: Brustgurt per Bluetooth (Chrome, https). Gurt vorher nicht mit Uhr/App koppeln.</p>
+  <button class="primary" id="go">Start</button>
+</div>
+
+<div id="top"><span id="blk"></span><span id="step"></span><button id="end" class="mini">Beenden</button></div>
+<div id="awake"></div>
+<div id="main">
+  <div id="block"></div>
+  <div id="name"></div>
+  <div id="cue"></div>
+  <div id="time">0</div>
+  <div id="hr"></div>
+  <div id="next"></div>
+  <div id="total"></div>
+</div>
+<div id="bar"><div></div></div>
+<div id="tbar"><div></div></div>
+<div id="summary" class="hide"></div>
+<button id="save" class="hide">💾 Ergebnis speichern (Drive)</button>
+<button id="fertig" class="hide">Fertig ✓</button>
+<div id="btns">
+  <button id="back">⏮ Zurück</button>
+  <button id="pause" class="primary">Pause</button>
+  <button id="skip">Weiter ⏭</button>
+</div>
+
+<video id="wakevid" muted playsinline loop webkit-playsinline>
+  <source src="data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwEAAAAAAAHiEU2bdLpNu4tTq4QVSalmU6yBoU27i1OrhBZUrmtTrIHYTbuMU6uEElTDZ1OsggEeTbuMU6uEHFO7a1OsggHM7AEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmsirXsYMPQkBNgI1MYXZmNjAuMTYuMTAwV0GNTGF2ZjYwLjE2LjEwMESJiECPQAAAAAAAFlSua8GuAQAAAAAAADjXgQFzxYgAYkuwHrZd0ZyBACK1nIN1bmSIgQCGhVZfVlA4g4EBI+ODhDuaygDgibCBELqBEJqBAhJUw2f8c3OgY8CAZ8iaRaOHRU5DT0RFUkSHjUxhdmY2MC4xNi4xMDBzc9ZjwItjxYgAYkuwHrZd0WfIoUWjh0VOQ09ERVJEh5RMYXZjNjAuMzEuMTAyIGxpYnZweGfIoUWjiERVUkFUSU9ORIeTMDA6MDA6MDEuMDAwMDAwMDAwAB9DtnWo54EAo6OBAACAEAIAnQEqEAAQAABHCIWFiJmEiAICAAwNYAD+/6tQgBxTu2uRu4+zgQC3iveBAfGCAZ/wgQM=" type="video/webm">
+  <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAMVbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAj90cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAG3bWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAQABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABYm1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAASJzdGJsAAAAvnN0c2QAAAAAAAAAAQAAAK5hdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAANGF2Y0MBZAAK/+EAF2dkAAqs2V7ARAAAAwAEAAADAAg8SJZYAQAGaOvjyyLA/fj4AAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAABYoAAAWKAAAABhzdHRzAAAAAAAAAAEAAAABAABAAAAAABxzdHNjAAAAAAAAAAEAAAABAAAAAQAAAAEAAAAUc3RzegAAAAAAAALFAAAAAQAAABRzdGNvAAAAAAAAAAEAAANFAAAAYnVkdGEAAABabWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAtaWxzdAAAACWpdG9vAAAAHWRhdGEAAAABAAAAAExhdmY2MC4xNi4xMDAAAAAIZnJlZQAAAs1tZGF0AAACrQYF//+p3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzEwOCAzMWUxOWY5IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyMyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTEgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAAQZYiEABX//vfJ78Cm69vfgQ==" type="video/mp4">
+</video>
+
+<script>
+// ===== Plan A: Freitag Kraft (Ringe, Langhantel, Core) =====
+// type: warm | easy (Pause) | fast (Satz) | cool      sec = Dauer (bei manual = geschätzte Dauer)
+// manual: Zeit läuft hoch, du tippst auf "Fertig", wenn der Satz durch ist
+const W=(name,cue,block,est)=>({type:"fast",name,sec:est,manual:true,cue,block});
+const T=(name,cue,block,sec)=>({type:"fast",name,sec,cue,block});
+const P=(sec,cue,block,name)=>({type:"easy",name:name||"Pause",sec,cue,block});
+const RUECKEN="Gerader Rücken · aus den Beinen heben · sticht der untere Rücken → Gewicht runter oder abbrechen";
+const PLAN = [
+  {type:"warm",block:"Einfahren",name:"Spinning locker",sec:300,cue:"Schraube 0, nach 2 Min auf ¼ · RPE 3 · gleichmäßig treten"},
+  {type:"warm",block:"Mobilisation",name:"Arme & Schultern",sec:60,cue:"Arm- und Schulterkreisen, Handgelenke lockern"},
+  {type:"warm",block:"Mobilisation",name:"Hüfte",sec:60,cue:"Hüftkreisen, Beinschwingen, Kniebeuge ohne Gewicht"},
+
+  // Ringe: 3 x (30 + 40 + 20 s Arbeit, 90 s Pause) = ca. 15 Min
+  ...[1,2,3].flatMap(r=>{const b="Ringe · Runde "+r+"/3"; return [
+    W("Dead Hang Klimmzüge","3 Wdh · 3 Sek hoch, 3 Sek runter · Ellenbogen nie ganz strecken",b,30),
+    P(30,"Hände ausschütteln",b),
+    W("Front Lever Absenkung","Start aus der Kerze · kontrolliert runter · nur so tief, wie Hüfte und Rücken gerade bleiben\nZieht der untere Rücken → sofort aufhören",b,40),
+    P(30,"Hände ausschütteln",b),
+    T("Stütz","20 Sek · Ellenbogen minimal angewinkelt",b,20),
+    P(90,r<3?"Pause · Wasser trinken":"Wechsel zur Langhantel · Wasser trinken",b),
+  ];}),
+
+  // Langhantel: 3 x 4 Übungen, je 10 Wdh, 90 Sek Pause = ca. 20 Min
+  ...[1,2,3].flatMap(r=>{const b="Langhantel · Runde "+r+"/3"; return [
+    W("Kreuzheben","15–17 kg · 10 Wdh · "+RUECKEN,b,45),
+    P(90,"Atmen · Wasser",b),
+    W("Rudern vorgebeugt","12–15 kg · 10 Wdh · Rücken gerade, Schulterblätter zusammen",b,45),
+    P(90,"Atmen",b),
+    W("Schulterdrücken stehend","10–12 kg · 10 Wdh · Rippen unten, Bauch fest",b,45),
+    P(90,"Atmen",b),
+    W("Romanian Deadlift","15–17 kg · 10 Wdh · "+RUECKEN,b,45),
+    P(90,r<3?"Pause · Wasser trinken":"Wechsel zum Core",b),
+  ];}),
+
+  // Core: 2 Runden
+  ...[1,2].flatMap(r=>{const b="Core · Runde "+r+"/2"; return [
+    W("Bauchroller von den Knien","8 Wdh · Rücken nicht durchhängen lassen",b,30),
+    P(20,"Kurz ausatmen",b),
+    T("Hollow Body Hold","30 Sek · unterer Rücken am Boden",b,30),
+    P(20,"Kurz ausatmen",b),
+    W("Russian Twist","2 kg · 15 Wdh je Seite",b,40),
+    P(20,"Kurz ausatmen",b),
+    W("Dead Bug","8 Wdh je Seite · langsam",b,40),
+    P(20,"Kurz ausatmen",b),
+    W("Pallof Press liegend","3 kg · 10 Wdh",b,30),
+    P(r<2?60:30,r<2?"Pause zwischen den Runden":"Gleich aufs Rad",b),
+  ];}),
+
+  {type:"cool",block:"Ausfahren",name:"Spinning ausfahren",sec:300,cue:"Schraube 0 bis ¼ · ganz locker · RPE 2 · Puls runter"},
+  {type:"cool",block:"Dehnen",name:"Hüftbeuger links",sec:30,cue:"Ausfallschritt-Position · Hüfte nach vorn schieben"},
+  {type:"cool",block:"Dehnen",name:"Hüftbeuger rechts",sec:30,cue:"Ausfallschritt-Position · Hüfte nach vorn schieben"},
+];
+const TOTAL = PLAN.reduce((a,s)=>a+s.sec,0);
+const LABEL={warm:"Aufwärmen",easy:"Pause",fast:"Satz",cool:"Ausfahren"};
+
+// ===== Format =====
+const p2=n=>String(n).padStart(2,"0");
+const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+p2(s%60);};
+const dstr=d=>d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());
+const tstr=d=>p2(d.getHours())+":"+p2(d.getMinutes())+":"+p2(d.getSeconds());
+const $=id=>document.getElementById(id);
+(function(){const groups=[];let at=0;
+  PLAN.forEach(x=>{const g=(x.block||"").replace(/ · Runde.*$/,"");let last=groups[groups.length-1];
+    if(!last||last.g!==g){last={g,start:at,sec:0};groups.push(last);} last.sec+=x.sec;at+=x.sec;});
+  $("plan").innerHTML=groups.map(r=>"<b>"+mmss(r.start)+"</b>"+r.g+" ≈"+mmss(r.sec)).join("<br>")+"<br><b>"+mmss(at)+"</b>Ende";})();
+
+// ===== Audio =====
+let ac;
+function ensureAudio(){ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); if(ac.state!=="running") ac.resume(); }
+function tone(freq,t0,dur,gain=.4,type="sine"){
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.type=type;o.frequency.value=freq;o.connect(g);g.connect(ac.destination);
+  g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(gain,t0+.005);
+  g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  o.start(t0);o.stop(t0+dur+.05);
+}
+function bellUp(){   // Satz startet: zwei Klingeln aufwärts
+  ensureAudio();const t=ac.currentTime;
+  [[880,0],[1318,.22]].forEach(([f,d])=>{tone(f,t+d,1.2,.45);tone(f*2,t+d,.8,.18);tone(f*3,t+d,.5,.08);});
+}
+function bellDown(){ // Pause / locker: ein tiefer, weicher Ton
+  ensureAudio();const t=ac.currentTime;
+  tone(523,t,1.6,.45);tone(1046,t,1,.15);
+}
+function beep(){ensureAudio();tone(1000,ac.currentTime,.12,.3,"square");}
+function doneJingle(){ensureAudio();const t=ac.currentTime;[784,988,1175,1568].forEach((f,i)=>tone(f,t+i*.18,.9,.4));}
+
+// ===== Bildschirm anlassen =====
+let wakeLock=null, wlPending=false, running=false;
+const vid=$("wakevid");
+vid.muted=true;vid.setAttribute("playsinline","");vid.setAttribute("webkit-playsinline","");
+function awakeStatus(){
+  const el=$("awake");
+  if(!running){el.textContent="";el.className="";return;}
+  const vidOk=!vid.paused&&!vid.ended;
+  if(wakeLock||vidOk){el.textContent="🔆 Bildschirm bleibt an ("+(wakeLock?"Wake-Lock":"Video")+")";el.className="";}
+  else{el.textContent="⚠️ Bildschirm-Sperre nicht verhindert – hier tippen, sonst Auto-Sperre am Gerät auf „Nie“ stellen";el.className="warn";}
+}
+function keepAwake(){
+  if(!running)return;
+  if(vid.paused){ try{const pr=vid.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){} }
+  if("wakeLock" in navigator && !wakeLock && !wlPending){
+    wlPending=true;
+    navigator.wakeLock.request("screen").then(l=>{
+      wakeLock=l;
+      l.addEventListener("release",()=>{wakeLock=null;awakeStatus();if(running&&document.visibilityState==="visible")keepAwake();});
+    }).catch(()=>{}).finally(()=>{wlPending=false;awakeStatus();});
+  }
+  setTimeout(awakeStatus,600);
+}
+function releaseAwake(){
+  running=false;
+  if(wakeLock){wakeLock.release().catch(()=>{});wakeLock=null;}
+  try{vid.pause();}catch(e){}
+  awakeStatus();
+}
+vid.addEventListener("playing",awakeStatus);
+vid.addEventListener("pause",awakeStatus);
+$("awake").addEventListener("click",keepAwake);
+document.addEventListener("pointerdown",()=>{ if(running){ensureAudio();keepAwake();} },true);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&running){ensureAudio();keepAwake();} });
+setInterval(()=>{ if(running) keepAwake(); },5000);
+
+// ===== Puls (Bluetooth-Brustgurt) =====
+let hrDev=null,hrNow=0,hrStat={s:0,n:0,max:0};
+function hrReset(){hrStat={s:0,n:0,max:0};}
+function hrTake(){return hrStat.n?{avg:Math.round(hrStat.s/hrStat.n),max:hrStat.max}:null;}
+function hrShow(){$("hr").textContent=hrNow?"❤️ "+hrNow:(hrDev?"❤️ …":"");}
+function onHr(e){
+  const d=e.target.value,f=d.getUint8(0),v=(f&1)?d.getUint16(1,true):d.getUint8(1);
+  if(v>0&&v<250){hrNow=v;if(active&&!paused){hrStat.s+=v;hrStat.n++;if(v>hrStat.max)hrStat.max=v;}hrShow();}
+}
+async function hrGatt(){
+  const srv=await hrDev.gatt.connect(),svc=await srv.getPrimaryService("heart_rate");
+  const ch=await svc.getCharacteristic("heart_rate_measurement");
+  ch.addEventListener("characteristicvaluechanged",onHr);
+  await ch.startNotifications();
+}
+async function hrReconnect(){ if(!hrDev)return; try{await hrGatt();}catch(e){setTimeout(hrReconnect,3000);} }
+async function connectHR(){
+  if(!navigator.bluetooth){$("hrinfo").textContent="Bluetooth geht hier nicht – bitte in Chrome über einen https-Link öffnen.";return;}
+  try{
+    hrDev=await navigator.bluetooth.requestDevice({filters:[{services:["heart_rate"]}]});
+    hrDev.addEventListener("gattserverdisconnected",()=>{hrNow=0;hrShow();setTimeout(hrReconnect,2000);});
+    $("hrinfo").textContent="Verbinde …";
+    for(let i=1;;i++){
+      try{await hrGatt();break;}
+      catch(err){
+        if(i>=4)throw err;
+        $("hrinfo").textContent="Verbinde … Versuch "+(i+1)+"/4";
+        try{hrDev.gatt.disconnect();}catch(e2){}
+        await new Promise(r=>setTimeout(r,1500));
+      }
+    }
+    $("hrinfo").textContent="✓ Verbunden: "+(hrDev.name||"Gurt");hrShow();
+  }catch(e){ $("hrinfo").textContent="Nicht verbunden: "+(e.name==="NotFoundError"?"kein Gurt gewählt":(e.message||e.name))+" – Gurt nicht mit Uhr/Garmin-App verbunden? Gurt kurz nass machen, Bluetooth aus/an."; }
+}
+$("hrbtn").onclick=connectHR;
+
+// ===== Zustand =====
+let idx=0,t=0,paused=false,timer=null,lastTick=0,active=false,lastSave=0;
+let log=[],sessionStart=null,stepStart=null,result=null,elapsedDone=0;
+function sound(s){ s.type==="fast"?bellUp():bellDown(); }
+
+function show(){
+  const s=PLAN[idx];
+  document.body.className=s.type;
+  $("block").textContent=s.block||LABEL[s.type];
+  $("name").textContent=s.name;
+  $("cue").textContent=s.cue+(s.manual?"\n⏱ Zeit läuft hoch – tippe „Fertig“, wenn der Satz durch ist":"");
+  $("fertig").classList.toggle("hide",!s.manual);
+  $("step").textContent=(idx+1)+" / "+PLAN.length;
+  $("blk").textContent=LABEL[s.type];
+  const nx=PLAN[idx+1];
+  $("next").textContent=nx?("Danach: "+nx.name+(nx.manual?" (Satz)":" ("+mmss(nx.sec)+")")):"Danach: Ende 🎉";
+  draw();
+}
+function draw(){
+  const s=PLAN[idx];if(!s)return;
+  if(s.manual){
+    $("time").textContent=t<60?Math.floor(t):mmss(t);
+    $("bar").firstElementChild.style.width=(100*Math.min(1,t/s.sec))+"%";
+  }else{
+    const rem=Math.max(0,s.sec-t);
+    $("time").textContent=rem>=60?mmss(Math.ceil(rem)):Math.ceil(rem);
+    $("bar").firstElementChild.style.width=(100*Math.min(1,t/s.sec))+"%";
+  }
+  const done=elapsedDone+t;
+  $("total").textContent="Gesamt "+mmss(done)+" · Ziel ca. "+mmss(TOTAL);
+  $("tbar").firstElementChild.style.width=(100*Math.min(1,done/TOTAL))+"%";
+}
+function commit(){
+  const s=PLAN[idx];if(!s)return;
+  log.push({nr:idx+1,typ:s.type,block:s.block||LABEL[s.type],name:s.name,manuell:!!s.manual,geplantSek:s.sec,istSek:Math.round(t*10)/10,start:tstr(stepStart||new Date()),puls:hrTake()});
+  hrReset();
+  elapsedDone+=t;
+}
+function startStep(i,silent){
+  idx=Math.max(0,Math.min(PLAN.length-1,i));
+  t=0;lastTick=performance.now();stepStart=new Date();
+  show();
+  if(!silent) sound(PLAN[idx]);
+  saveState();
+}
+function nextStep(){ commit(); if(idx>=PLAN.length-1) finish(); else startStep(idx+1); }
+
+function buildResult(){
+  const end=new Date(),total=log.reduce((a,x)=>a+x.istSek,0);
+  const saetze=log.filter(x=>x.typ==="fast");
+  result={typ:"kraft-freitag",datum:dstr(sessionStart),start:tstr(sessionStart),ende:tstr(end),
+    geplantSek:TOTAL,gesamtSek:Math.round(total),
+    plan:"Kraft Freitag: Spinning 5, Mobi 2, Ringe 3x(Dead Hang Klimmzuege, Front Lever Absenkung, Stuetz), Langhantel 3x(Kreuzheben, Rudern vorgebeugt, Schulterdruecken, RDL), Core 2x, Spinning 5, Dehnen",
+    saetze:saetze.map(x=>({block:x.block,name:x.name,sek:x.istSek,manuell:x.manuell,puls:x.puls||null})),
+    schritte:log};
+  $("summary").textContent=result.datum+"  "+result.start+"–"+result.ende+"\n"+
+    "Gesamt: "+mmss(result.gesamtSek)+" (Ziel "+mmss(TOTAL)+")\n"+
+    saetze.map(x=>x.block.replace("Runde ","R")+" · "+x.name+": "+mmss(x.istSek)+(x.puls?" · ♥ Ø"+x.puls.avg+" max "+x.puls.max:"")).join("\n");
+  $("summary").classList.remove("hide");$("save").classList.remove("hide");
+}
+async function saveResult(){
+  if(!result)return;
+  const name="kraft_"+result.datum+"_"+result.start.slice(0,5).replace(":","-")+".json";
+  const text=JSON.stringify(result,null,2);
+  for(const type of ["application/json","text/plain"]){
+    const file=new File([text],name,{type});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:name});$("next").textContent="Geteilt – in Google Drive in den Trainingsordner legen.";return;}
+      catch(e){ if(e&&e.name==="AbortError")return; }
+    }
+  }
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));
+  a.download=name;document.body.appendChild(a);a.click();a.remove();
+  $("next").textContent="Datei heruntergeladen: "+name+" – bitte in den Drive-Trainingsordner legen.";
+}
+let endArm=0;
+function endEarly(){
+  if(!active)return;
+  if(Date.now()-endArm>3000){endArm=Date.now();$("end").textContent="Sicher?";setTimeout(()=>{$("end").textContent="Beenden";},3000);return;}
+  $("end").textContent="Beenden";commit();finish();
+}
+function finish(){
+  clearInterval(timer);active=false;clearState();document.body.className="done";
+  $("block").textContent="Fertig";$("name").textContent="Stark! 💪";
+  $("cue").textContent="Kraft Freitag abgeschlossen";$("time").textContent="✓";
+  $("next").textContent="";$("total").textContent="";$("step").textContent="";$("blk").textContent="";
+  $("end").classList.add("hide");$("fertig").classList.add("hide");
+  $("bar").firstElementChild.style.width="100%";$("tbar").firstElementChild.style.width="100%";
+  $("pause").textContent="Nochmal";paused=false;doneJingle();
+  buildResult();releaseAwake();
+}
+function tick(){
+  const now=performance.now(),dt=(now-lastTick)/1000;lastTick=now;
+  if(paused||!active)return;
+  const s=PLAN[idx];
+  const before=Math.ceil(s.sec-t);
+  t+=dt;
+  if(now-lastSave>1000){lastSave=now;saveState();}
+  if(!s.manual){
+    const rem=s.sec-t,after=Math.ceil(Math.max(rem,0));
+    if(after!==before&&after>0&&after<=3) beep();
+    if(rem<=0){
+      const over=-rem;t=s.sec;nextStep();           // Überhang mitnehmen, Gesamtzeit bleibt exakt
+      if(active&&over>0&&over<1&&!PLAN[idx].manual)t=over;
+      return;
+    }
+  }
+  draw();
+}
+function begin(){
+  ensureAudio();
+  paused=false;$("pause").textContent="Pause";
+  $("start").classList.add("hide");
+  log=[];result=null;elapsedDone=0;sessionStart=new Date();active=true;
+  $("summary").classList.add("hide");$("save").classList.add("hide");$("end").classList.remove("hide");
+  running=true;keepAwake();
+  startStep(0,false);
+  clearInterval(timer);timer=setInterval(tick,100);
+}
+$("go").onclick=begin;
+$("fertig").onclick=()=>{ if(active&&PLAN[idx].manual) nextStep(); };
+$("pause").onclick=()=>{
+  if(!active){location.reload();return;}
+  paused=!paused;$("pause").textContent=paused?"Weiter":"Pause";lastTick=performance.now();saveState();
+};
+$("skip").onclick=()=>{ if(active) nextStep(); };
+$("back").onclick=()=>{
+  if(!active)return;
+  if(t>2||idx===0){ startStep(idx,true); }
+  else { const prev=log.pop(); if(prev)elapsedDone-=prev.istSek; startStep(idx-1,true); }
+};
+$("save").onclick=saveResult;
+$("end").onclick=endEarly;
+
+// ===== Stand sichern & nach Neuladen fortsetzen =====
+const KEY="kraft_state_v1";
+function saveState(){
+  if(!active||!sessionStart)return;
+  try{localStorage.setItem(KEY,JSON.stringify({idx,t,elapsedDone,log,paused,sessionStart:sessionStart.toISOString(),savedAt:Date.now()}));}catch(e){}
+}
+function clearState(){try{localStorage.removeItem(KEY);}catch(e){}}
+function loadState(){try{const j=localStorage.getItem(KEY);return j?JSON.parse(j):null;}catch(e){return null;}}
+// Wo wäre man jetzt? Feste Timer laufen weiter, bei einem Satz (manuell) bleibt man stehen und die Zeit zählt weiter hoch.
+function projected(sv){
+  const lg=(sv.log||[]).slice();
+  let i=sv.idx,tt=sv.t,el=sv.elapsedDone;
+  if(!sv.paused) tt+=(Date.now()-sv.savedAt)/1000;
+  while(!PLAN[i].manual && tt>=PLAN[i].sec){
+    const s=PLAN[i];
+    lg.push({nr:i+1,typ:s.type,block:s.block||LABEL[s.type],name:s.name,manuell:false,geplantSek:s.sec,istSek:s.sec,start:""});
+    el+=s.sec;tt-=s.sec;
+    if(i>=PLAN.length-1) return {finished:true,lg,el};
+    i++;
+  }
+  return {finished:false,i,t:tt,el,lg};
+}
+function resume(){
+  const sv=loadState();if(!sv)return;
+  const p=projected(sv);
+  ensureAudio();
+  sessionStart=new Date(sv.sessionStart);
+  log=p.lg;elapsedDone=p.el;
+  $("start").classList.add("hide");
+  $("summary").classList.add("hide");$("save").classList.add("hide");
+  active=true;
+  if(p.finished){ idx=PLAN.length-1; finish(); return; }
+  paused=!!sv.paused;running=true;$("end").classList.remove("hide");
+  $("pause").textContent=paused?"Weiter":"Pause";
+  keepAwake();
+  idx=p.i;t=p.t;lastTick=performance.now();stepStart=new Date();
+  show();sound(PLAN[idx]);saveState();
+  clearInterval(timer);timer=setInterval(tick,100);
+}
+$("resume").onclick=resume;
+window.addEventListener("pagehide",saveState);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") saveState(); });
+window.addEventListener("beforeunload",e=>{ if(active){e.preventDefault();e.returnValue="";} });
+(function initResume(){
+  const sv=loadState();
+  if(!sv||typeof sv.idx!=="number"||sv.idx>=PLAN.length||Date.now()-sv.savedAt>3*3600e3){ if(sv)clearState(); return; }
+  const p=projected(sv),ago=Math.round((Date.now()-sv.savedAt)/1000);
+  $("resumeinfo").textContent=p.finished
+    ? "Gespeicherte Einheit (vor "+mmss(ago)+") wäre inzwischen zu Ende."
+    : "Gespeicherter Stand von vor "+mmss(ago)+": weiter bei Gesamt "+mmss(p.el+p.t)+" im Abschnitt „"+PLAN[p.i].name+"“ ("+(PLAN[p.i].block||LABEL[PLAN[p.i].type])+").";
+  if(p.finished)$("resume").textContent="Ergebnis ansehen";
+  $("resumebox").classList.remove("hide");
+  $("go").textContent="Neu starten";$("go").classList.remove("primary");
+})();
+</script>
+</body>
+</html>
