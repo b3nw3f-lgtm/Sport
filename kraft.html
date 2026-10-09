@@ -106,27 +106,27 @@ const PLAN = [
   {type:"warm",block:"Mobilisation",name:"Arme & Schultern",sec:60,cue:"Arm- und Schulterkreisen, Handgelenke lockern"},
   {type:"warm",block:"Mobilisation",name:"Hüfte",sec:60,cue:"Hüftkreisen, Beinschwingen, Kniebeuge ohne Gewicht"},
 
-  // Ringe: 3 x (30 + 40 + 20 s Arbeit, 90 s Pause) = ca. 15 Min
+  // Ringe: 3 Runden. Front Lever zuerst (frisch, kopfüber sicher), dann Klimmzüge, Stütz zum Schluss
   ...[1,2,3].flatMap(r=>{const b="Ringe · Runde "+r+"/3"; return [
-    W("Dead Hang Klimmzüge","3 Wdh · 3 Sek hoch, 3 Sek runter · Ellenbogen nie ganz strecken",b,30),
-    P(30,"Hände ausschütteln",b),
-    W("Front Lever Absenkung","Start aus der Kerze · kontrolliert runter · nur so tief, wie Hüfte und Rücken gerade bleiben\nZieht der untere Rücken → sofort aufhören",b,40),
-    P(30,"Hände ausschütteln",b),
+    W("Front Lever Absenkung","1 Versuch · Start aus der Kerze · kontrolliert runter · nur so tief, wie Hüfte und Rücken gerade bleiben\nUnsicher oder zieht der untere Rücken → aufhören",b,40),
+    P(60,"Hände ausschütteln · erst wieder festen Stand, dann weiter",b),
+    W("Dead Hang Klimmzüge","bis zu 3 saubere Wdh · 3 Sek hoch, 3 Sek runter · nach der letzten sauberen aufhören · Ellenbogen nie ganz strecken",b,30),
+    P(45,"Hände ausschütteln",b),
     T("Stütz","20 Sek · Ellenbogen minimal angewinkelt",b,20),
-    P(90,r<3?"Pause · Wasser trinken":"Wechsel zur Langhantel · Wasser trinken",b),
+    P(120,r<3?"Pause · Wasser trinken":"Wechsel zur Langhantel · Wasser trinken",b),
   ];}),
 
-  // Langhantel: 3 x 4 Übungen, je 10 Wdh, 90 Sek Pause = ca. 20 Min
-  ...[1,2,3].flatMap(r=>{const b="Langhantel · Runde "+r+"/3"; return [
-    W("Kreuzheben","15–17 kg · 10 Wdh · "+RUECKEN,b,45),
-    P(90,"Atmen · Wasser",b),
-    W("Rudern vorgebeugt","12–15 kg · 10 Wdh · Rücken gerade, Schulterblätter zusammen",b,45),
-    P(90,"Atmen",b),
-    W("Schulterdrücken stehend","10–12 kg · 10 Wdh · Rippen unten, Bauch fest",b,45),
-    P(90,"Atmen",b),
-    W("Romanian Deadlift","15–17 kg · 10 Wdh · "+RUECKEN,b,45),
-    P(90,r<3?"Pause · Wasser trinken":"Wechsel zum Core",b),
-  ];}),
+  // Langhantel: 3 x 4 Übungen, je 10 Wdh, 90 Sek Pause. Runde 2 rückwärts, damit die Scheiben nur 2x gewechselt werden:
+  // R1: Kreuzheben 15, Rudern 15, Schulterdrücken 10, RDL 10 | R2: RDL 10, Schulterdrücken 10, Rudern 15, Kreuzheben 15 | R3 wie R1
+  ...[1,2,3].flatMap(r=>{const b="Langhantel · Runde "+r+"/3";
+    const ex={
+      kh:()=>W("Kreuzheben","15 kg · 10 Wdh · "+RUECKEN,b,45),
+      ru:()=>W("Rudern vorgebeugt","15 kg · 10 Wdh · Rücken gerade, Schulterblätter zusammen",b,45),
+      sd:()=>W("Schulterdrücken stehend","10 kg · 10 Wdh · Rippen unten, Bauch fest",b,45),
+      rd:()=>W("Romanian Deadlift","10 kg · 10 Wdh · langsam, 3 Sek runter · "+RUECKEN,b,45)};
+    const order=r===2?["rd","sd","ru","kh"]:["kh","ru","sd","rd"];
+    return order.flatMap((k,i)=>[ex[k](),P(90,i<3?"Atmen · Wasser":(r<3?"Pause · Wasser trinken":"Wechsel zum Core"),b)]);
+  }),
 
   // Core: 2 Runden
   ...[1,2].flatMap(r=>{const b="Core · Runde "+r+"/2"; return [
@@ -305,7 +305,7 @@ function buildResult(){
   const saetze=log.filter(x=>x.typ==="fast");
   result={typ:"kraft-freitag",datum:dstr(sessionStart),start:tstr(sessionStart),ende:tstr(end),
     geplantSek:TOTAL,gesamtSek:Math.round(total),
-    plan:"Kraft Freitag: Spinning 5, Mobi 2, Ringe 3x(Dead Hang Klimmzuege, Front Lever Absenkung, Stuetz), Langhantel 3x(Kreuzheben, Rudern vorgebeugt, Schulterdruecken, RDL), Core 2x, Spinning 5, Dehnen",
+    plan:"Kraft Freitag: Spinning 5, Mobi 2, Ringe 3x(Front Lever Absenkung, Dead Hang Klimmzuege, Stuetz), Langhantel 3x(Kreuzheben, Rudern vorgebeugt, Schulterdruecken, RDL), Core 2x, Spinning 5, Dehnen",
     saetze:saetze.map(x=>({block:x.block,name:x.name,sek:x.istSek,manuell:x.manuell,puls:x.puls||null})),
     schritte:log};
   $("summary").textContent=result.datum+"  "+result.start+"–"+result.ende+"\n"+
