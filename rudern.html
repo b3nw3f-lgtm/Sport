@@ -32,7 +32,7 @@
   button:active{transform:scale(.97)}
   button.mini{flex:none;padding:4px 12px;font-size:13px;border-radius:10px}
   #summary{width:100%;max-width:520px;max-height:34vh;overflow:auto;text-align:left;font-size:14px;line-height:1.5;background:rgba(0,0,0,.2);border-radius:12px;padding:10px 12px;white-space:pre-wrap;-webkit-user-select:text;user-select:text}
-  #spark{width:100%;max-width:520px;height:70px;background:rgba(0,0,0,.2);border-radius:12px}
+  #spark{width:100%;max-width:520px;aspect-ratio:300/182;background:rgba(0,0,0,.2);border-radius:12px}
   #save{width:100%;flex:none;padding:22px 8px;font-size:22px;background:#fff;color:#111;border-radius:18px}
   #start{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;z-index:5;overflow:auto}
   #start h1{margin:0;font-size:30px}
@@ -86,7 +86,7 @@
   <div id="stats"></div>
 </div>
 <div id="bar" class="hide"><div></div></div>
-<svg id="spark" class="hide" viewBox="0 0 300 70" preserveAspectRatio="none"></svg>
+<svg id="spark" class="hide" viewBox="0 0 300 182"></svg>
 <div id="summary" class="hide"></div>
 <button id="save" class="hide">💾 Ergebnis speichern (Drive)</button>
 <div id="btns">
@@ -314,7 +314,7 @@ function tick(){
   }
   const rowOn=rowActive();
   if(rowOn){rowS+=rowNow.spm*dt;rowT+=dt;if(rowNow.spm>rowMaxSpm)rowMaxSpm=rowNow.spm;if(rowNow.watt){rowWS+=rowNow.watt*dt;rowWT+=dt;}}
-  if((hrNow||rowOn)&&t-lastSample>=5){lastSample=t;series.push([Math.round(t),hrNow||null,rowOn?rowNow.spm:null,rowOn&&rowNow.pace?rowNow.pace:null,rowOn?rowNow.watt:null]);}
+  if((hrNow||rowOn)&&t-lastSample>=5){lastSample=t;series.push([Math.round(t),hrNow||null,rowOn?rowNow.spm:null,rowOn&&rowNow.pace?rowNow.pace:null,rowOn?rowNow.watt:null,rowOn&&rowBase?rowNow.dist-rowBase.dist:null]);}
   if(now-lastSave>1000){lastSave=now;saveState();}
   if(MODE==="timer"){
     const after=Math.ceil(Math.max(P-t,0));
@@ -340,12 +340,43 @@ function begin(){
   clearInterval(timer);timer=setInterval(tick,100);
 }
 function sparkSvg(){
-  const ser=series.filter(x=>x[1]);
-  if(ser.length<2)return "";
-  const maxT=ser[ser.length-1][0]||1;
-  const lo=Math.min(...ser.map(x=>x[1]))-5,hi=Math.max(...ser.map(x=>x[1]))+5;
-  const pts=ser.map(x=>(300*x[0]/maxT).toFixed(1)+","+(66-62*(x[1]-lo)/(hi-lo)).toFixed(1)).join(" ");
-  return '<polyline fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" points="'+pts+'"/>';
+  const hrS_=series.filter(x=>x[1]);
+  if(hrS_.length<2)return "";
+  const maxT=series[series.length-1][0]||1;
+  const L=30,R=270,T=10,B=140;
+  const X=tt=>L+(R-L)*tt/maxT;
+  const hv=hrS_.map(x=>x[1]);
+  const lo=Math.min.apply(null,hv)-5,hi=Math.max.apply(null,hv)+5;
+  const YH=v=>B-(B-T)*(v-lo)/(hi-lo);
+  let g="";
+  const zl=Math.round(.60*hrmax()),zh=Math.round(.75*hrmax());
+  const y1=Math.max(T,Math.min(B,YH(zh))),y2=Math.max(T,Math.min(B,YH(zl)));
+  if(y2>y1)g+='<rect x="'+L+'" y="'+y1.toFixed(1)+'" width="'+(R-L)+'" height="'+(y2-y1).toFixed(1)+'" fill="#ffffff" fill-opacity=".22"/>';
+  g+='<line x1="'+L+'" y1="'+B+'" x2="'+R+'" y2="'+B+'" stroke="#fff" stroke-opacity=".4"/>';
+  g+='<polyline fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" points="'+hrS_.map(x=>X(x[0]).toFixed(1)+","+YH(x[1]).toFixed(1)).join(" ")+'"/>';
+  // Pace, 30 s gleitend gemittelt
+  const pr=[];
+  series.forEach((x,i)=>{ if(!x[3])return; const w=series.slice(Math.max(0,i-5),i+1).map(y=>y[3]).filter(v=>v&&v<400); if(w.length)pr.push([x[0],w.reduce((p,c)=>p+c,0)/w.length]); });
+  if(pr.length>1){
+    const pv=pr.map(x=>x[1]),pLo=Math.min.apply(null,pv)-5,pHi=Math.max.apply(null,pv)+5;
+    const YP=v=>T+(B-T)*(v-pLo)/(pHi-pLo);
+    g+='<polyline fill="none" stroke="#ffd43b" stroke-width="2" stroke-linejoin="round" points="'+pr.map(x=>X(x[0]).toFixed(1)+","+YP(x[1]).toFixed(1)).join(" ")+'"/>';
+    g+='<text x="'+(R+3)+'" y="'+(T+8)+'" font-size="9" fill="#ffd43b">'+mmss(pLo+5)+'</text><text x="'+(R+3)+'" y="'+B+'" font-size="9" fill="#ffd43b">'+mmss(pHi-5)+'</text>';
+  }
+  g+='<text x="2" y="'+(T+8)+'" font-size="9" fill="#fff">'+Math.round(hi-5)+'</text><text x="2" y="'+B+'" font-size="9" fill="#fff">'+Math.round(lo+5)+'</text>';
+  g+='<text x="'+L+'" y="152" font-size="9" fill="#fff">0</text><text x="'+((L+R)/2)+'" y="152" font-size="9" fill="#fff" text-anchor="middle">'+mmss(maxT/2)+'</text><text x="'+R+'" y="152" font-size="9" fill="#fff" text-anchor="end">'+mmss(maxT)+'</text>';
+  g+='<text x="'+L+'" y="165" font-size="9" fill="#fff">Weiß: Puls (links) · helle Fläche = Ausdauerzone</text>';
+  g+='<text x="'+L+'" y="177" font-size="9" fill="#ffd43b">Gelb: Pace /500 m (rechts) · oben = schneller</text>';
+  return g;
+}
+function halves(){
+  const ser=series.filter(x=>x[1]&&x[3]);
+  if(ser.length<6)return "";
+  const maxT=series[series.length-1][0]||1;
+  const A=ser.filter(x=>x[0]<maxT/2),B2=ser.filter(x=>x[0]>=maxT/2);
+  if(A.length<3||B2.length<3)return "";
+  const m=(arr,i)=>arr.reduce((p,c)=>p+c[i],0)/arr.length;
+  return "\n1. Hälfte: Pace "+mmss(m(A,3))+" · Puls "+Math.round(m(A,1))+"\n2. Hälfte: Pace "+mmss(m(B2,3))+" · Puls "+Math.round(m(B2,1));
 }
 function buildResult(){
   const end=new Date(),zs=zoneSec.map(x=>Math.round(x));
@@ -357,12 +388,12 @@ function buildResult(){
     zonenSek:avg?{Z1_unter60:zs[0],Z2_60bis70:zs[1],Z3_70bis80:zs[2],Z4_80bis90:zs[3],Z5_ueber90:zs[4]}:null,
     rudern:rowT>0?{schlaegeProMinAvg:Math.round(rowS/rowT*10)/10,schlaegeProMinMax:rowMaxSpm,
       schlaege:rowBase?rowNow.strokes-rowBase.strokes:null,meter:rowBase?rowNow.dist-rowBase.dist:null,
-      wattAvg:rowWT>0?Math.round(rowWS/rowWT):null,rohdatenHex:rowRaw}:null,
-    verlaufSpalten:["sek","puls","schlaegeProMin","sekPro500m","watt"],
+      wattAvg:rowWT>0?Math.round(rowWS/rowWT):null,paceAvgSekPro500m:(rowBase&&rowNow.dist-rowBase.dist>50)?Math.round(t/(rowNow.dist-rowBase.dist)*500):null,rohdatenHex:rowRaw}:null,
+    verlaufSpalten:["sek","puls","schlaegeProMin","sekPro500m","watt","meter"],
     verlauf:series};
   $("summary").textContent=result.datum+"  "+result.start+"–"+result.ende+"\n"+
     "Zeit: "+mmss(result.gesamtSek)+(MODE==="timer"?" (Ziel "+mmss(P)+")":"")+
-    (result.rudern?"\nSchläge/Min Ø "+result.rudern.schlaegeProMinAvg+" · max "+result.rudern.schlaegeProMinMax+(result.rudern.schlaege!==null?" · "+result.rudern.schlaege+" Schläge · "+result.rudern.meter+" m":"")+(result.rudern.wattAvg!==null?" · Ø "+result.rudern.wattAvg+" W":""):"")+
+    (result.rudern?"\nSchläge/Min Ø "+result.rudern.schlaegeProMinAvg+" · max "+result.rudern.schlaegeProMinMax+(result.rudern.schlaege!==null?" · "+result.rudern.schlaege+" Schläge · "+result.rudern.meter+" m":"")+(result.rudern.wattAvg!==null?" · Ø "+result.rudern.wattAvg+" W":"")+(result.rudern.paceAvgSekPro500m?"\nØ Pace "+mmss(result.rudern.paceAvgSekPro500m)+" /500 m":""):"")+halves()+
     (avg?"\nPuls Ø "+avg+" · max "+hrMaxSeen+" · min "+result.puls.min+" bpm\n"+
       ZNAME.map((n,i)=>n+": "+mmss(zs[i])).join("\n"):"\nKein Puls aufgezeichnet");
   $("summary").classList.remove("hide");$("save").classList.remove("hide");
