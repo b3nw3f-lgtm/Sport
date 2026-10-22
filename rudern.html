@@ -25,6 +25,12 @@
   #zone.ga{font-size:26px;font-weight:800;opacity:1;background:#fff;color:#0a7a2a;border-radius:12px;padding:6px 12px}
   body.run.ga{background:#1f9d3a}
   #stats{font-size:16px;opacity:.9;min-height:1.4em;font-variant-numeric:tabular-nums}
+  #coach{width:100%;max-width:520px;border-radius:14px;padding:8px 10px;background:rgba(0,0,0,.28)}
+  #coach .c1{font-size:clamp(24px,7.5vw,38px);font-weight:800;line-height:1.15}
+  #coach .c2{font-size:15px;opacity:.92;margin-top:2px;font-variant-numeric:tabular-nums}
+  #coach .ok{color:#b2f2bb} #coach .warn{color:#ffe066} #coach .bad{color:#ffa8a8}
+  body[data-mode=plan] #live{height:20vh}
+  body[data-mode=plan] #rowdata b{font-size:22px}
   #bar{height:8px;background:rgba(255,255,255,.25);border-radius:4px;overflow:hidden}
   #bar div{height:100%;width:0;background:#fff}
   #btns{display:flex;gap:10px}
@@ -63,7 +69,8 @@
 <div id="start">
   <h1>Rudern</h1>
   <p>Offen oder mit Timer. Zeigt Schlagzahl vom Rudergerät und deinen Puls. Gespeichert werden Zeit, Schlagzahl, Puls und Verlauf.</p>
-  <div id="modes"><button id="mOpen">Offen</button><button id="mTimer">Timer</button></div>
+  <div id="modes"><button id="mPlan">Plan 45</button><button id="mOpen">Offen</button><button id="mTimer">Timer</button></div>
+  <p id="planinfo" class="hide"></p>
   <div id="presets" class="hide"><button data-m="20">20</button><button data-m="30">30</button><button data-m="45">45</button><button data-m="60">60</button></div>
   <label class="row hide" id="minrow">Dauer <input id="mins" type="number" inputmode="numeric" min="1" max="300" value="30"> min</label>
   <label class="row">Max-Puls <input id="hrmax" type="number" inputmode="numeric" min="140" max="220" value="182"> bpm</label>
@@ -81,6 +88,7 @@
 <div id="main">
   <div id="label"></div>
   <div id="time">0:00</div>
+  <div id="coach" class="hide"></div>
   <svg id="live" class="hide" viewBox="0 0 300 182"></svg>
   <div id="rowdata" class="hide"></div>
   <div id="hr"></div>
@@ -108,20 +116,33 @@ const tstr=d=>p2(d.getHours())+":"+p2(d.getMinutes())+":"+p2(d.getSeconds());
 const $=id=>document.getElementById(id);
 
 // ===== Einstellungen =====
-let MODE="open";
-try{const v=localStorage.getItem("rudern_mode");if(v==="open"||v==="timer")MODE=v;const m=parseInt(localStorage.getItem("rudern_mins"));if(m>=1&&m<=300)$("mins").value=m;}catch(e){}
+let MODE="plan";
+// ===== Plan 45: Grundlagenausdauer, Pace-geführt =====
+// lo = schnellste erlaubte Pace, hi = langsamste (Sek./500 m)
+const PLAN=[
+  {name:"Einrollen",von:0,bis:300,lo:155,hi:180,ziel:"2:45",cap:false},
+  {name:"Grundlage",von:300,bis:2400,lo:150,hi:165,ziel:"2:37",cap:true},
+  {name:"Auslaufen",von:2400,bis:2700,lo:170,hi:260,ziel:"3:00",cap:false}
+];
+const PLAN_SEK=2700;
+let cbPace=[],cbHr=[],lastPh=-1,coachHtml="";
+function planIdx(tt){let i=0;while(i<PLAN.length-1&&tt>=PLAN[i].bis)i++;return i;}
+function planInfo(){$("planinfo").textContent="45 Min: 5 Min einrollen (Pace 2:45) → 35 Min Grundlage (Pace 2:37, Puls max. "+Math.round(.75*hrmax())+") → 5 Min auslaufen (3:00). Die App sagt dir live, ob du schneller oder langsamer rudern sollst.";}
+try{const v=localStorage.getItem("rudern_mode_v2");if(v==="open"||v==="timer"||v==="plan")MODE=v;const m=parseInt(localStorage.getItem("rudern_mins"));if(m>=1&&m<=300)$("mins").value=m;}catch(e){}
 try{const v=parseInt(localStorage.getItem("spinning_hrmax"));if(v>=140&&v<=220)$("hrmax").value=v;}catch(e){}
 function hrmax(){const v=parseInt($("hrmax").value);return v>=140&&v<=220?v:182;}
 function mins(){const v=parseInt($("mins").value);return v>=1&&v<=300?v:30;}
 function setMode(m){
-  MODE=m;try{localStorage.setItem("rudern_mode",m);}catch(e){}
-  $("mOpen").classList.toggle("primary",m==="open");$("mOpen").classList.toggle("on",m==="open");
+  MODE=m;try{localStorage.setItem("rudern_mode_v2",m);}catch(e){}
+  document.body.dataset.mode=m;
+  $("mPlan").classList.toggle("on",m==="plan");$("mOpen").classList.toggle("on",m==="open");
   $("mTimer").classList.toggle("on",m==="timer");
   $("presets").classList.toggle("hide",m!=="timer");$("minrow").classList.toggle("hide",m!=="timer");
+  $("planinfo").classList.toggle("hide",m!=="plan");planInfo();
 }
-$("mOpen").onclick=()=>setMode("open");$("mTimer").onclick=()=>setMode("timer");
+$("mPlan").onclick=()=>setMode("plan");$("mOpen").onclick=()=>setMode("open");$("mTimer").onclick=()=>setMode("timer");
 document.querySelectorAll("#presets button").forEach(b=>b.onclick=()=>{$("mins").value=b.dataset.m;});
-$("hrmax").onchange=()=>{try{localStorage.setItem("spinning_hrmax",String(hrmax()));}catch(e){}};
+$("hrmax").onchange=()=>{try{localStorage.setItem("spinning_hrmax",String(hrmax()));}catch(e){}planInfo();};
 $("mins").onchange=()=>{try{localStorage.setItem("rudern_mins",String(mins()));}catch(e){}};
 setMode(MODE);
 
@@ -286,6 +307,29 @@ function gaUpdate(){
   if(inb){z.textContent="✅ AUSDAUER-ZONE "+lo+"–"+hi;z.className="ga";}
   else{z.className="";z.textContent=(hrNow<lo?"↑ zu locker":"↓ zu hart")+" · Ziel "+lo+"–"+hi+" · "+ZNAME[zoneOf(hrNow)];}
 }
+// ===== Coach (Plan 45): sagt, ob schneller/langsamer =====
+function cbPush(){
+  if(rowActive()&&rowNow.pace>0&&rowNow.pace<400)cbPace.push([t,rowNow.pace]);
+  if(hrNow)cbHr.push([t,hrNow]);
+  while(cbPace.length&&t-cbPace[0][0]>15)cbPace.shift();
+  while(cbHr.length&&t-cbHr[0][0]>20)cbHr.shift();
+}
+const avgOf=a=>a.length?a.reduce((p,c)=>p+c[1],0)/a.length:0;
+function coachUpdate(){
+  const el=$("coach");
+  if(MODE!=="plan"||!active){el.classList.add("hide");return;}
+  el.classList.remove("hide");
+  const ph=PLAN[planIdx(t)],pc=avgOf(cbPace),hr=avgOf(cbHr),cap=Math.round(.75*hrmax());
+  let msg,cls="";
+  if(paused){msg="⏸ Pause";}
+  else if(!pc){msg="Rudern … Pace erscheint nach ein paar Zügen";}
+  else if(ph.cap&&hr>cap){msg="⬇ Puls "+Math.round(hr)+" – 5 s langsamer";cls="bad";}
+  else if(pc<ph.lo){msg="⬇ zu schnell – ruhiger ziehen";cls="bad";}
+  else if(pc>ph.hi){msg="⬆ etwas mehr Druck";cls="warn";}
+  else{msg="✅ Pace passt";cls="ok";}
+  const h='<div class="c1 '+cls+'">'+msg+'</div><div class="c2">Ziel '+ph.ziel+' /500 m · jetzt '+(pc?mmss(pc):"–")+(ph.cap?" · Puls ≤ "+cap:"")+'</div>';
+  if(h!==coachHtml){coachHtml=h;el.innerHTML=h;}
+}
 function updateLive(){
   const sv=sparkSvg();
   $("live").innerHTML=sv||'<text x="150" y="95" font-size="11" fill="#fff" text-anchor="middle" fill-opacity=".8">Diagramm startet nach wenigen Sekunden …</text>';
@@ -293,12 +337,14 @@ function updateLive(){
 }
 // ===== Anzeige =====
 function draw(){
-  const s=MODE==="timer"?Math.max(0,P-t):t;
-  $("time").textContent=mmss(MODE==="timer"?Math.ceil(s):s);
-  $("label").textContent=paused?"Pause":(MODE==="timer"?"Noch":"Zeit");
-  $("top").firstElementChild.textContent=MODE==="timer"?"Timer "+mmss(P):"Offen";
-  $("stepinfo").textContent=MODE==="timer"?"gerudert "+mmss(t):"";
-  if(MODE==="timer"){$("bar").classList.remove("hide");$("bar").firstElementChild.style.width=(100*Math.min(1,t/P))+"%";}
+  const timed=MODE!=="open",ph=MODE==="plan"?PLAN[planIdx(t)]:null;
+  const s=timed?Math.max(0,P-t):t;
+  $("time").textContent=mmss(timed?Math.ceil(s):s);
+  $("label").textContent=paused?"Pause":(ph?ph.name+" · noch "+mmss(Math.ceil(Math.max(0,ph.bis-t))):(timed?"Noch":"Zeit"));
+  $("top").firstElementChild.textContent=MODE==="plan"?"Plan 45":(MODE==="timer"?"Timer "+mmss(P):"Offen");
+  $("stepinfo").textContent=timed?"gerudert "+mmss(t):"";
+  if(timed&&P>0){$("bar").classList.remove("hide");$("bar").firstElementChild.style.width=(100*Math.min(1,t/P))+"%";}
+  coachUpdate();
   gaUpdate();
   if(rowDev){
     const on=rowActive(),pc=rowNow.pace;
@@ -315,6 +361,7 @@ function tick(){
   if(paused||!active)return;
   const before=Math.ceil(P-t);
   t+=Math.min(dt,5);
+  if(MODE==="plan"){cbPush();const ix=planIdx(t);if(ix!==lastPh){if(lastPh>=0)bellUp();lastPh=ix;}}
   if(hrNow){
     hrS+=hrNow*dt;hrT+=dt;zoneSec[zoneOf(hrNow)]+=dt;
     if(hrNow>hrMaxSeen)hrMaxSeen=hrNow;if(hrNow<hrMinSeen)hrMinSeen=hrNow;
@@ -323,7 +370,7 @@ function tick(){
   if(rowOn){rowS+=rowNow.spm*dt;rowT+=dt;if(rowNow.spm>rowMaxSpm)rowMaxSpm=rowNow.spm;if(rowNow.watt){rowWS+=rowNow.watt*dt;rowWT+=dt;}}
   if((hrNow||rowOn)&&t-lastSample>=5){lastSample=t;series.push([Math.round(t),hrNow||null,rowOn?rowNow.spm:null,rowOn&&rowNow.pace?rowNow.pace:null,rowOn?rowNow.watt:null,rowOn&&rowBase?rowNow.dist-rowBase.dist:null]);updateLive();}
   if(now-lastSave>1000){lastSave=now;saveState();}
-  if(MODE==="timer"){
+  if(MODE!=="open"){
     const after=Math.ceil(Math.max(P-t,0));
     if(after!==before&&after>0&&after<=3)beep();
     if(t>=P){t=P;finish();return;}
@@ -332,8 +379,9 @@ function tick(){
 }
 function begin(){
   ensureAudio();
-  P=mins()*60;
+  P=MODE==="plan"?PLAN_SEK:mins()*60;
   $("start").classList.add("hide");
+  cbPace=[];cbHr=[];lastPh=-1;coachHtml="";
   t=0;series=[];lastSample=-99;hrS=0;hrT=0;hrMaxSeen=0;hrMinSeen=999;zoneSec=[0,0,0,0,0];
   rowS=0;rowT=0;rowMaxSpm=0;rowWS=0;rowWT=0;rowBase=rowDev&&rowNow.ts?{strokes:rowNow.strokes,dist:rowNow.dist}:null;
   result=null;paused=false;active=true;sessionStart=new Date();
@@ -342,7 +390,7 @@ function begin(){
   document.body.className="run";
   running=true;keepAwake();
   lastTick=performance.now();
-  if(MODE==="timer")bellUp();
+  if(MODE!=="open")bellUp();
   saveState();draw();updateLive();
   clearInterval(timer);timer=setInterval(tick,100);
 }
@@ -385,11 +433,41 @@ function halves(){
   const m=(arr,i)=>arr.reduce((p,c)=>p+c[i],0)/arr.length;
   return "\n1. Hälfte: Pace "+mmss(m(A,3))+" · Puls "+Math.round(m(A,1))+"\n2. Hälfte: Pace "+mmss(m(B2,3))+" · Puls "+Math.round(m(B2,1));
 }
+function segStats(a,b){
+  const r=series.filter(x=>x[0]>=a&&x[0]<b);
+  if(r.length<2)return null;
+  const hrs=r.filter(x=>x[1]),ws=r.filter(x=>x[4]!=null),sp=r.filter(x=>x[2]),mm=r.filter(x=>x[5]!=null);
+  let pace=null;
+  if(mm.length>=2){const dm=mm[mm.length-1][5]-mm[0][5],dt=mm[mm.length-1][0]-mm[0][0];if(dm>20&&dt>0)pace=Math.round(dt/dm*500);}
+  const av=(arr,i)=>arr.length?Math.round(arr.reduce((p,c)=>p+c[i],0)/arr.length):null;
+  return {pulsAvg:av(hrs,1),paceSekPro500m:pace,wattAvg:av(ws,4),schlaegeProMinAvg:sp.length?Math.round(sp.reduce((p,c)=>p+c[2],0)/sp.length*10)/10:null};
+}
+function planResult(){
+  const tEnd=Math.round(t);
+  const phasen=PLAN.map(ph=>Object.assign({name:ph.name,vonSek:ph.von,bisSek:Math.min(ph.bis,tEnd),zielPace:ph.ziel},segStats(ph.von,ph.bis)||{}));
+  let drift=null;
+  const gS=PLAN[1].von,gE=Math.min(PLAN[1].bis,tEnd);
+  if(gE-gS>=600){
+    const mid=gS+(gE-gS)/2,a=segStats(gS,mid),b=segStats(mid,gE);
+    if(a&&b&&a.pulsAvg&&b.pulsAvg&&a.paceSekPro500m&&b.paceSekPro500m){
+      const ef=x=>(1/x.paceSekPro500m)/x.pulsAvg;
+      drift={pulsHaelfte1:a.pulsAvg,paceHaelfte1:a.paceSekPro500m,pulsHaelfte2:b.pulsAvg,paceHaelfte2:b.paceSekPro500m,entkopplungProzent:Math.round((ef(a)-ef(b))/ef(a)*1000)/10};
+    }
+  }
+  return {phasen,grundlageDrift:drift};
+}
+function planText(){
+  const p=result.plan;if(!p)return "";
+  let s="\n"+p.phasen.map(f=>f.name+": "+(f.paceSekPro500m?"Pace "+mmss(f.paceSekPro500m):"Pace –")+" (Ziel "+f.zielPace+")"+(f.pulsAvg?" · Puls Ø "+f.pulsAvg:"")+(f.wattAvg!=null?" · "+f.wattAvg+" W":"")).join("\n");
+  const d=p.grundlageDrift;
+  if(d)s+="\nGrundlage 1. Hälfte: Pace "+mmss(d.paceHaelfte1)+" · Puls "+d.pulsHaelfte1+"\nGrundlage 2. Hälfte: Pace "+mmss(d.paceHaelfte2)+" · Puls "+d.pulsHaelfte2+"\nEntkopplung "+d.entkopplungProzent+" % ("+(d.entkopplungProzent<5?"gut, unter 5 %":d.entkopplungProzent<10?"mittel":"hoch – Basis noch im Aufbau oder müde")+")";
+  return s;
+}
 function buildResult(){
   const end=new Date(),zs=zoneSec.map(x=>Math.round(x));
   const avg=hrT>0?Math.round(hrS/hrT):null;
   result={typ:"rudern",datum:dstr(sessionStart),start:tstr(sessionStart),ende:tstr(end),
-    modus:MODE,geplantSek:MODE==="timer"?P:null,gesamtSek:Math.round(t),
+    modus:MODE,geplantSek:MODE!=="open"?P:null,gesamtSek:Math.round(t),
     maxPulsEinstellung:hrmax(),
     puls:avg?{avg:avg,max:hrMaxSeen,min:hrMinSeen<999?hrMinSeen:null}:null,
     zonenSek:avg?{Z1_unter60:zs[0],Z2_60bis70:zs[1],Z3_70bis80:zs[2],Z4_80bis90:zs[3],Z5_ueber90:zs[4]}:null,
@@ -398,9 +476,10 @@ function buildResult(){
       wattAvg:rowWT>0?Math.round(rowWS/rowWT):null,paceAvgSekPro500m:(rowBase&&rowNow.dist-rowBase.dist>50)?Math.round(t/(rowNow.dist-rowBase.dist)*500):null,rohdatenHex:rowRaw}:null,
     verlaufSpalten:["sek","puls","schlaegeProMin","sekPro500m","watt","meter"],
     verlauf:series};
+  if(MODE==="plan")result.plan=planResult();
   $("summary").textContent=result.datum+"  "+result.start+"–"+result.ende+"\n"+
-    "Zeit: "+mmss(result.gesamtSek)+(MODE==="timer"?" (Ziel "+mmss(P)+")":"")+
-    (result.rudern?"\nSchläge/Min Ø "+result.rudern.schlaegeProMinAvg+" · max "+result.rudern.schlaegeProMinMax+(result.rudern.schlaege!==null?" · "+result.rudern.schlaege+" Schläge · "+result.rudern.meter+" m":"")+(result.rudern.wattAvg!==null?" · Ø "+result.rudern.wattAvg+" W":"")+(result.rudern.paceAvgSekPro500m?"\nØ Pace "+mmss(result.rudern.paceAvgSekPro500m)+" /500 m":""):"")+halves()+
+    "Zeit: "+mmss(result.gesamtSek)+(MODE!=="open"?" (Ziel "+mmss(P)+")":"")+
+    (result.rudern?"\nSchläge/Min Ø "+result.rudern.schlaegeProMinAvg+" · max "+result.rudern.schlaegeProMinMax+(result.rudern.schlaege!==null?" · "+result.rudern.schlaege+" Schläge · "+result.rudern.meter+" m":"")+(result.rudern.wattAvg!==null?" · Ø "+result.rudern.wattAvg+" W":"")+(result.rudern.paceAvgSekPro500m?"\nØ Pace "+mmss(result.rudern.paceAvgSekPro500m)+" /500 m":""):"")+(MODE==="plan"?planText():halves())+
     (avg?"\nPuls Ø "+avg+" · max "+hrMaxSeen+" · min "+result.puls.min+" bpm\n"+
       ZNAME.map((n,i)=>n+": "+mmss(zs[i])).join("\n"):"\nKein Puls aufgezeichnet");
   $("summary").classList.remove("hide");$("save").classList.remove("hide");
@@ -431,7 +510,7 @@ function finish(){
   clearInterval(timer);active=false;clearState();document.body.className="done";
   $("label").textContent="Fertig";$("time").textContent=mmss(t);
   $("hr").textContent="";$("zone").textContent="";$("stats").textContent="";
-  $("end").classList.add("hide");$("bar").classList.add("hide");$("live").classList.add("hide");
+  $("end").classList.add("hide");$("bar").classList.add("hide");$("live").classList.add("hide");$("coach").classList.add("hide");
   $("pause").textContent="Nochmal";paused=false;doneJingle();
   buildResult();releaseAwake();
 }
@@ -460,9 +539,10 @@ function resume(){
   hrS=sv.hrS;hrT=sv.hrT;hrMaxSeen=sv.hrMaxSeen;hrMinSeen=sv.hrMinSeen;zoneSec=sv.zoneSec;lastSample=sv.lastSample;
   if(!paused)t+=(Date.now()-sv.savedAt)/1000;   // Zeit lief weiter (ohne Puls)
   sessionStart=new Date(sv.sessionStart);
+  cbPace=[];cbHr=[];lastPh=planIdx(t);coachHtml="";document.body.dataset.mode=MODE;
   $("start").classList.add("hide");$("summary").classList.add("hide");$("save").classList.add("hide");
   active=true;
-  if(MODE==="timer"&&t>=P){t=P;finish();return;}
+  if(MODE!=="open"&&t>=P){t=P;finish();return;}
   running=true;keepAwake();$("end").classList.remove("hide");
   $("pause").textContent=paused?"Weiter":"Pause";
   document.body.className=paused?"pause":"run";
@@ -477,7 +557,7 @@ window.addEventListener("beforeunload",e=>{ if(active){e.preventDefault();e.retu
   const sv=loadState();
   if(!sv||typeof sv.t!=="number"||Date.now()-sv.savedAt>3*3600e3){ if(sv)clearState(); return; }
   const ago=Math.round((Date.now()-sv.savedAt)/1000);
-  $("resumeinfo").textContent="Gespeicherter Stand von vor "+mmss(ago)+": Fahrzeit "+mmss(sv.t+(sv.paused?0:ago))+" ("+(sv.mode==="timer"?"Timer "+mmss(sv.P):"offen")+").";
+  $("resumeinfo").textContent="Gespeicherter Stand von vor "+mmss(ago)+": Fahrzeit "+mmss(sv.t+(sv.paused?0:ago))+" ("+(sv.mode==="plan"?"Plan 45":sv.mode==="timer"?"Timer "+mmss(sv.P):"offen")+").";
   $("resumebox").classList.remove("hide");
   $("go").textContent="Neu starten";$("go").classList.remove("primary");
 })();
